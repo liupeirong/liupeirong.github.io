@@ -14,5 +14,4 @@ Here's what you need to do:
 4.  Set up Device Explorer to monitor messages from IoTHub as documented [here](https://github.com/Azure/azure-iot-sdk-csharp/tree/master/tools/DeviceExplorer#monitor-device-to-cloud-events).
 5.  Send a message from MQTTBox, and observe it from Device Explorer.  Note that the topic must be in the format `devices/{your_device_id}/messages/events/{your_property_name1}={value1}&{your_property_name2}={value2}...`.  The properties you put in the topic can be used for IoTHub message routing described [here](https://github.com/Azure/azure-iot-sdk-csharp/tree/master/tools/DeviceExplorer#monitor-device-to-cloud-events). 
 <img src="images/03sendmessage.png" alt="Send message" />
-
-<img src="images/04monitormessage.png" alt"Monitor message" />
+<img src="images/04monitormessage.png" alt="Monitor message" />

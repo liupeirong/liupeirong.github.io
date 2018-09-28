@@ -1,8 +1,3 @@
----
-title: Paige's GitHub Posts
-layout: post
----
-
 ## Connect MQTT Client to Azure IoT Hub
 
 You can connect to Azure IoTHub using a generic MQTT client for testing.  I tried some online MQTT clients without success.  But [MQTTBox](http://workswithweb.com/html/mqttbox/downloads.html) works perfectly. 

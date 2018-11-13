@@ -47,6 +47,8 @@ You can now test what different users will see in Power BI Desktop using ```View
 <img src="images/viewAsAdmin.png" alt="view the report as an admin" />
 <img src="images/viewAsUser.png" alt="view the report as a non-admin user" />
 
+Here's a [sample pbix file](userbasedcolumn.pbix).
+
 ### Option 2 - Use Azure SQL or SQL Server Dynamic Data Masking
 If your data source is Azure SQL or SQL Server, and Power BI connects to SQL with Direct Query using Azure AD authentication with user's credential, then you can leverage the [Dynamic Data Masking](https://docs.microsoft.com/en-us/azure/sql-database/sql-database-dynamic-data-masking-get-started) capability in SQL Server.  This approach masks the data directly at the data source level, potentially reducing the exposure of sensitive data, but it has several limitations in addition to having to have Direct Query and Azure AD authentication:
 1. It doesn't work with Power BI Embedded, because the end user is not a Power BI user, and Power BI would pass the master user's credential to SQL instead. 

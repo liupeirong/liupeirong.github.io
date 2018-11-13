@@ -69,8 +69,7 @@ GRANT SELECT on SCHEMA :: dbo TO [joe@contoso.com];
 5.  Publish the report to Power BI Service, and configure Power BI to connect to SQL using user's Azure AD credential:
 <img src="images/oauthToSQL.png" alt="authenticate with SQL using OAuth" />
 
-As different users sign in to Power BI to view the report, those who are exempted from Dynamic Data Masking will see  ```sensitive_value``` as-is, 
+As different users sign in to Power BI to view the report, those who are exempted from Dynamic Data Masking will see ```sensitive_value``` as-is,
 <img src="images/unmasked.png" alt="unmasked" />
-
-others will see 0 in this column. 
+others will see 0 in this column.
 <img src="images/masked.png" alt="masked" />

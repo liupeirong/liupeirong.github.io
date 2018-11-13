@@ -70,6 +70,9 @@ GRANT SELECT on SCHEMA :: dbo TO [joe@contoso.com];
 <img src="images/oauthToSQL.png" alt="authenticate with SQL using OAuth" />
 
 As different users sign in to Power BI to view the report, those who are exempted from Dynamic Data Masking will see ```sensitive_value``` as-is,
+
 <img src="images/unmasked.png" alt="unmasked" />
+
 others will see 0 in this column.
+
 <img src="images/masked.png" alt="masked" />

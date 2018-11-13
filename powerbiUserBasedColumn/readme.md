@@ -22,21 +22,19 @@ For privileged users, you would like to display the ```sensitive_value``` as-is 
 
 I have tried two ways to achieve this. 
 
-### Option 1 - Create a measure to display based on username() 
+### Option 1 - Create a measure for display based on username() 
 This approach is fairly simple and works for both Power BI Service and Power BI Embedded. 
 1.  Create a measure for ```value_bucket``` based on ```sensitive_value```:
-```
+```sql
 value_bucket = if('datatable'[sensitive_value] < 50, "0-49", "50-100")
 ```
 2.  Create a table, called ```usertable```, that contains the users who can see ```sensitive_value``` as-is:
-
 |username                |
 |---                     |
 |admin@contoso.com       |
 |pbiadmin@contoso.com    |
-
 3.  Create a measure to display either ```sensitive_value``` or ```value_bucket``` based on username()
-```
+```sql
 display_value = 
     var showvalue = IF(CONTAINS(usertable,usertable[username], USERNAME()), 1, 0)
     return if(showvalue = 1, max('datatable'[sensitive_value]), max('datatable'[value_bucket]))
@@ -47,8 +45,8 @@ You can now test what different users will see in Power BI Desktop using ```View
 <img src="images/viewAsAdmin.png" alt="view the report as an admin" />
 <img src="images/viewAsUser.png" alt="view the report as a non-admin user" />
 
-### Option 2 - User Azure SQL or SQL Server Dynamic Data Masking
-If your data source is Azure SQL or SQL Server, and Power BI connects to SQL with Direct Query using Azure AD authentication with user's credential, then you could leverage the [Dynamic Data Masking](https://docs.microsoft.com/en-us/azure/sql-database/sql-database-dynamic-data-masking-get-started) capability in SQL Server.  This approach masks the data directly at the data source level, potentially reducing the exposure of sensitive data, but it has several limitations in addition to having to have Direct Query and Azure AD authentication:
+### Option 2 - Use Azure SQL or SQL Server Dynamic Data Masking
+If your data source is Azure SQL or SQL Server, and Power BI connects to SQL with Direct Query using Azure AD authentication with user's credential, then you can leverage the [Dynamic Data Masking](https://docs.microsoft.com/en-us/azure/sql-database/sql-database-dynamic-data-masking-get-started) capability in SQL Server.  This approach masks the data directly at the data source level, potentially reducing the exposure of sensitive data, but it has several limitations in addition to having to have Direct Query and Azure AD authentication:
 1. It doesn't work with Power BI Embedded, because the end user is not a Power BI user, and Power BI would pass the master user's credential to SQL instead. 
 2. Creating a measure of ```value_bucket``` in Power BI based on the masked ```sensitive_value``` won't work, because the query results coming from SQL to Power BI is already masked, the measure will see all numeric values as 0. You must create a computed column in SQL instead.  
 
@@ -67,9 +65,10 @@ GRANT SELECT on SCHEMA :: dbo TO [joe@contoso.com];
 ```
 4.  Create a report in Power BI that displays both ```sensitive_value``` and ```value_bucket```:
 5.  Publish the report to Power BI Service, and configure Power BI to connect to SQL using user's Azure AD credential:
-<img src="images/oauth2Sql.png" alt="authenticate with SQL using OAuth" />
+<img src="images/oauthToSql.png" alt="authenticate with SQL using OAuth" />
 
 As different users sign in to Power BI to view the report, those who are exempted from Dynamic Data Masking will see  ```sensitive_value``` as-is, 
 <img src="images/unmasked.png" alt="unmasked" />
+
 others will see 0 in this column. 
 <img src="images/masked.png" alt="masked" />

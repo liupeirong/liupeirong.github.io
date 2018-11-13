@@ -29,10 +29,12 @@ This approach is fairly simple and works for both Power BI Service and Power BI 
 value_bucket = if('datatable'[sensitive_value] < 50, "0-49", "50-100")
 ```
 2.  Create a table, called ```usertable```, that contains the users who can see ```sensitive_value``` as-is:
+
 |username                |
 |---                     |
 |admin@contoso.com       |
 |pbiadmin@contoso.com    |
+
 3.  Create a measure to display either ```sensitive_value``` or ```value_bucket``` based on username()
 ```sql
 display_value = 
@@ -65,7 +67,7 @@ GRANT SELECT on SCHEMA :: dbo TO [joe@contoso.com];
 ```
 4.  Create a report in Power BI that displays both ```sensitive_value``` and ```value_bucket```:
 5.  Publish the report to Power BI Service, and configure Power BI to connect to SQL using user's Azure AD credential:
-<img src="images/oauthToSql.png" alt="authenticate with SQL using OAuth" />
+<img src="images/oauthToSQL.png" alt="authenticate with SQL using OAuth" />
 
 As different users sign in to Power BI to view the report, those who are exempted from Dynamic Data Masking will see  ```sensitive_value``` as-is, 
 <img src="images/unmasked.png" alt="unmasked" />

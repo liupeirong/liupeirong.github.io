@@ -1,0 +1,47 @@
+<html><head>
+<meta charset='UTF-8'>
+<link href='resource/bootstrap.min.css' rel='Stylesheet' type='text/css' />
+<link href='resource/style.css' rel='Stylesheet' type='text/css' />
+</head>
+<body>
+<div id='page'>
+<h1 class='entry-title'>SSH tunnel to endpoints in Azure VNet from Windows</h1>
+ <a class='url fn n profile-usercard-hover' href='https://social.msdn.microsoft.com/profile/Paige Liu' target='_blank'>Paige Liu</a>
+<time>    1/17/2017 12:04:46 AM</time>
+<hr>
+<div id='content'>When you deploy virtual machines on Azure, a good practice is to set up Azure <a target="_blank" href="https://docs.microsoft.com/en-us/azure/virtual-network/virtual-networks-nsg">Network Security Groups</a> (NSG) to minimize the exposure of endpoints and limit access to those endpoints to only known IPs from the Internet.  In order to access the rest of the endpoints in your Virtual Network (VNet) on Azure, you can set up a SSH tunnel.  SSH tunnel is a familiar concept for Linux users.  If you are working on Windows, you can follow these steps to access the endpoints in Azure VNet from your laptop or desktop.
+
+<strong>Step 1:</strong> In Azure portal, navigate to <span>the VM that you want to tunnel into and copy its public IP or DNS from the </span><strong>Overview</strong><span> blade. </span>
+
+<a href="media/2017/01/AzureVMDNS.png"><img src="media/2017/01/AzureVMDNS-1024x603.png" alt="azurevmdns" width="1024" height="603" class="alignnone wp-image-165 size-large" /></a>
+
+<strong>Step 2:</strong> Find the SSH port for the VM.  This is typically port 22.  But you can verify it by opening <strong>Network interfaces</strong> blade of the VM, click on the network interface, then <strong>Network security group</strong>.  Click on the network security group in the blade, and find the inbound security rule of the network security group:
+
+<a href="media/2017/01/AzureVMNSG.png"><img src="media/2017/01/AzureVMNSG-1024x325.png" alt="azurevmnsg" width="1024" height="325" class="alignnone wp-image-175 size-large" /></a>
+
+<strong>Step 3:</strong> Set up a SSH tunnel to Azure
+<ul>
+ 	<li>Download <a target="_blank" href="http://www.putty.org/">Putty</a> if you haven't already</li>
+ 	<li>Open Putty, enter userName@VMpublicIPorDNS and the SSH port for the VM that you identified in Step 1 and 2:</li>
+</ul>
+<a href="media/2017/01/AzureVMPutty1.png"><img src="media/2017/01/AzureVMPutty1.png" alt="azurevmputty1" width="597" height="532" class="alignnone wp-image-185 size-full" /></a>
+<ul>
+ 	<li>In the left navigation panel of Putty, go to <strong>Connections</strong>, <strong>SSH</strong>, then <strong>Tunnels</strong>, enter the tunneling port in Putty, click <strong>Add</strong>, and then click <strong>Open</strong> to connect to the VM:</li>
+</ul>
+<a href="media/2017/01/AzureVMPutty2.png"><img src="media/2017/01/AzureVMPutty2.png" alt="azurevmputty2" width="592" height="526" class="alignnone wp-image-186 size-full" /></a>
+
+<strong>Step 4:</strong> Configure the browser to access endpoints in Azure VNet through a SSH tunnel
+
+Configure one instance of your Chrome browser to proxy through the tunnel.  The default settings for other Chrome instances won't be affected.
+<pre class="brush: jscript; title: ; notranslate" title="">&gt;"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" --user-data-dir="%USERPROFILE%\chrome-via-socks" --proxy-server="socks5://localhost:1080"
+</pre>
+You can now access the private endpoints on Azure VNet from your Chrome browser.  For example,
+<ul>
+ 	<li><em>http://www.whatismyipaddress.com</em> will display that you are using an IP owned by Microsoft</li>
+ 	<li><em>http://localhost</em> will connect to port 80 of the Azure VM that you are tunneling into</li>
+ 	<li><em>http://&lt;Azure VNet private IP or host name&gt;:&lt;port&gt;</em> will connect to the specified port of an Azure VM on the same VNet as the VM that you are tunneling into</li>
+</ul></div>
+</div></body>
+<script type='text/javascript' src='resource/jquery-1.12.1.min.js'></script>
+<script type='text/javascript' src='resource/replace.js'></script>
+</html>

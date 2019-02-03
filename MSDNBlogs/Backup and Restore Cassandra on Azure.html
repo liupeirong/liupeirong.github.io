@@ -1,0 +1,143 @@
+<html><head>
+<meta charset='UTF-8'>
+<link href='resource/bootstrap.min.css' rel='Stylesheet' type='text/css' />
+<link href='resource/style.css' rel='Stylesheet' type='text/css' />
+</head>
+<body>
+<div id='page'>
+<h1 class='entry-title'>Backup and Restore Cassandra on Azure</h1>
+ <a class='url fn n profile-usercard-hover' href='https://social.msdn.microsoft.com/profile/Paige Liu' target='_blank'>Paige Liu</a>
+<time>    10/7/2016 1:51:31 AM</time>
+<hr>
+<div id='content'>When you run Cassandra on virtual machines on Azure, one way to back up and restore data is to rsync Cassandra snapshots to data disks attached to each VM.  The data disks in Azure are backed by Azure blob storage and automatically benefit from the durability that Azure storage brings.  You can also copy the backup disks to a new Cassandra cluster and restore data there.  In this example we will outline the steps to back up a single keyspace with a single table, make some changes to the table, then restore the backup to the original cluster, and also restore to a new cluster.  You can automate the steps in scripts and also extend the same method to back up and restore multiple tables or keyspaces.
+
+These steps are verified on a default deployment of <a href="https://azure.microsoft.com/en-us/marketplace/partners/datastax/datastax-enterprisesingledc/">DataStax Enterprise cluster on Azure Marketplace</a>, but it doesn't use any DataStax Enterprise specific capabilities, and should work on Apache Cassandra.
+
+Let's assume we are backing up "demo_keyspace", which has a "users" table, and our snapshot name is "test_snapshot".
+<h3>Back up</h3>
+To back up demo_keyspace, go to each Cassandra node and perform the following steps:
+<p class="indent">1. If you don't already have a data disk dedicated for backups on the VM, attach a data disk, format and mount it.  You can use Azure command line tool or PowerShell to attach a disk to a VM, but for simplicity, we will use Azure portal here.  Navigate to the VM in Azure portal, click on <strong>Disks</strong>, and <strong>Attach new</strong>:</p>
+<p class="indent"><a href="media/2016/10/backuprestore1.png"><img src="media/2016/10/backuprestore1-1024x435.png" alt="backuprestore1" width="1024" height="435" class="alignnone wp-image-115 size-large" /></a></p>
+<p class="indent">You can format and mount the disks however the way you want, below commands are just an example, you need sudo or root to run these commands:</p>
+
+<pre class="brush: jscript; title: ; notranslate" title="">$ fdisk -l (find the newly attached disk, it's likely /dev/sdc if it's the first disk, we assume it's /dev/sdc below)
+$ fdisk /dev/sdc (type 'n' at the first prompt, use default for the rest of the prompts, and finally type 'w' to save the changes)
+$ mkfs -t ext4 /dev/sdc1
+$ mkdir /backupdrive
+$ mount /dev/sdc1 /backupdrive
+$ blkid (note down the uuid for /dev/sdc1)
+$ vi /etc/fstab (add a line like this 'UUID=(uuid from above) /backupdrive ext4 defaults,nofail,noatime, 0 2')
+</pre>
+<p class="indent">2. If you haven't already backed up the schema for demo_keyspace, back up the schema and save the output file. You only need to run this on one node:</p>
+
+<pre class="brush: jscript; title: ; notranslate" title="">$ cqlsh -e "desc keyspace demo_keyspace" &gt; demo_keyspace_schema.cql
+</pre>
+<p class="indent">3. Flush data from memory to disk.  On the default deployment of DataStax on Azure, data is stored on the ephemeral disk on each VM in the folder /mnt/data</p>
+
+<pre class="brush: jscript; title: ; notranslate" title="">$ nodetool flush
+</pre>
+<p class="indent">4. If we have an old test_snapshot, remove it, and list the snapshots folder to make sure it's gone:</p>
+
+<pre class="brush: jscript; title: ; notranslate" title="">$ nodetool clearsnapshot -t test_snapshot
+$ ls /mnt/data/demo_keyspace/users-(uuid)/snapshots
+</pre>
+<p class="indent">5. Take a snapshot and rsync it to the backup disk:</p>
+
+<pre class="brush: jscript; title: ; notranslate" title="">$ nodetool snapshot -t test_snapshot demo_keyspace
+$ mkdir /backupdrive/cassandra_snapshots (need sudo or root privilege)
+$ rsync -azP --delete /mnt/data/demo_keyspace --include '*/' --include 'snapshots/***' --exclude '*' /backupdrive/cassandra_snapshots
+</pre>
+<h3>Restore to the existing cluster</h3>
+To verify back up and restore works, select some data from users table, then make some changes.  Remember what you changed, so that after we restore, we can verify the changes are gone.  Take the following steps on each node to restore to an existing cluster where the snapshot was taken, you will need to run most of these commands with sudo or root:
+<p class="indent">1. Stop Cassandra, on our DataStax deployment, run this command:</p>
+
+<pre class="brush: jscript; title: ; notranslate" title="">$ service dse stop
+</pre>
+<p class="indent">2. Clear commit log and saved cache:</p>
+
+<pre class="brush: jscript; title: ; notranslate" title="">$ rm -f /mnt/commitlog/*
+$ rm -f /mnt/saved_caches/*
+</pre>
+<p class="indent">3. Remove database files for demo_keyspace:</p>
+
+<pre class="brush: jscript; title: ; notranslate" title="">$ rm -f /mnt/data/demo_keyspace/users-(uuid)/*.db
+</pre>
+<p class="indent">4. Rsync backups to demo_keyspace and move the snapshots two levels up to the directory for the db files:</p>
+
+<pre class="brush: jscript; title: ; notranslate" title="">$ rsync -azP /backupdrive/cassandra_snapshots/ --include '*/' --include 'demo_keyspace/***' --exclude '*' /mnt/data/
+$ mv /mnt/data/demo_keyspace/users-(uuid)/snapshots/test_snapshot/* /mnt/data/demo_keyspace/users-(uuid)
+$ chown -R cassandra:cassandra /mnt/data/demo_keyspace
+</pre>
+<p class="indent">5. Start Cassandra:</p>
+
+<pre class="brush: jscript; title: ; notranslate" title="">$ service dse start
+</pre>
+select some data from users table again, and make sure the table is restored to its original state prior to your changes made after the snapshot.
+<h3>Restore to a new cluster</h3>
+<p class="indent">1. Find the tokens of each node on the existing cluster. Go to the Azure portal, and find the public IP of each node:</p>
+<a href="media/2016/10/backuprestore2.png"><img src="media/2016/10/backuprestore2.png" alt="backuprestore2" width="768" height="279" class="alignnone wp-image-125 size-full" /></a>
+<p class="indent">Note down the tokens for each node by running the following command with that nodes's IP:</p>
+
+<pre class="brush: jscript; title: ; notranslate" title="">$ nodetool ring | grep ip_address_of_node | awk '{print $NF ","}' | xargs</pre>
+<p class="indent">2. Deploy a new cluster with the same number of nodes as the old cluster where the snapshot was taken.  On Azure, you can easily do this by deploying <a href="https://azure.microsoft.com/en-us/marketplace/partners/datastax/datastax-enterprisesingledc/">DataStax from Azure Marketplace</a></p>
+<p class="indent">3. Copy the backup disks from the old cluster to a storage account in the new cluster.
+Find the backup disks from the old cluster:</p>
+<a href="media/2016/10/backuprestore3.png"><img src="media/2016/10/backuprestore3-1024x381.png" alt="backuprestore3" width="1024" height="381" class="alignnone wp-image-135 size-large" /></a>
+<p class="indent">For testing, we can copy to the storage account and container used by the OS disks. We can use Azure command line tool as shown below, or download <a>Azure Storage Explorer</a>, then copy and paste blobs in the UI.</p>
+
+<pre class="brush: jscript; title: ; notranslate" title=""># use "export" on Linux and "set" on Windows to set the environment variables
+&gt; export AZURE_STORAGE_ACCOUNT=(destination storage account name) 
+&gt; export AZURE_STORAGE_ACCESS_KEY=(destination storage account key)
+# create a sas url for the source storage account
+&gt; azure storage account sas create --account-name (source storage account name) --account-key (source storage account key) b o r (expiration date, ex: 2016-12-31)
+&gt; azure storage blob copy start "https://(source vhd url shown in the above screenshot)?(output from above sas command)" vhds 
+# run this to check if copy succeeded
+&gt; azure storage blob copy show vhds (vhd blob name)  
+</pre>
+Go to each node of the new cluster and take the following steps:
+<p class="indent">4. Attach a copied disk and mount it:</p>
+<p class="indent"><a href="media/2016/10/backuprestore4.png"><img src="media/2016/10/backuprestore4-1024x311.png" alt="backuprestore4" width="1024" height="311" class="alignnone wp-image-145 size-large" /></a></p>
+
+<pre class="brush: jscript; title: ; notranslate" title="">$ fdisk -l (find the newly attached disk, it's likely /dev/sdc if it's the first disk, we assume it's /dev/sdc below)
+$ mkdir /backupdrive
+$ mount /dev/sdc1 /backupdrive
+$ blkid (note down the uuid for /dev/sdc1)
+$ vi /etc/fstab (add a line like this 'UUID=(uuid from above) /backupdrive ext4 defaults,nofail,noatime, 0 2')</pre>
+<p class="indent">5. Update cassandra.yaml with the tokens for this node:</p>
+
+<pre class="brush: jscript; title: ; notranslate" title="">$ vi /etc/dse/cassandra/cassandra.yaml 
+# uncomment initial_token, and set the value of initial_token to the tokens you noted in step 1
+</pre>
+<p class="indent">6. Create the schema.  This only needs to run on one node:</p>
+
+<pre class="brush: jscript; title: ; notranslate" title="">$ cqlsh
+&gt; source 'demo_keyspace_schema.sql'</pre>
+<p class="indent">7. Restore the snapshots:</p>
+
+<pre class="brush: jscript; title: ; notranslate" title=""># Stop Cassandra:
+service dse stop
+
+# Clear systems table
+rm -rf /mnt/data/system/*
+
+# Clear commit log and saved caches
+rm -rf /mnt/commitlog/*
+rm -rf /mnt/saved_caches/*
+
+# Rename the snapshot file from the table name in the old cluster to the table name in the new cluster
+ls /mnt/data/demo_keyspace  (copy the new table name)
+cd /backupdrive/cassandra_snapshots/demo_keyspace/
+mv (old table name) (new table name)
+
+# rsync the snapshot to the data disk and move two levels up to the data folder
+rsync -azP /backupdrive/cassandra_snapshots/ --include '*/' --include 'demo_keyspace/***' --exclude '*' /mnt/data/
+mv /mnt/data/demo_keyspace/users-(uuid)/snapshots/test_snapshot/* /mnt/data/demo_keyspace/users-(uuid)
+chown -R cassandra:cassandra /mnt/data 
+# Start Cassandra 
+service dse start
+</pre>
+Select data from the users table, and make sure it's the same as the old cluster when the snapshot was taken.</div>
+</div></body>
+<script type='text/javascript' src='resource/jquery-1.12.1.min.js'></script>
+<script type='text/javascript' src='resource/replace.js'></script>
+</html>

@@ -1,0 +1,106 @@
+<html><head>
+<meta charset='UTF-8'>
+<link href='resource/bootstrap.min.css' rel='Stylesheet' type='text/css' />
+<link href='resource/style.css' rel='Stylesheet' type='text/css' />
+</head>
+<body>
+<div id='page'>
+<h1 class='entry-title'>Enable Kerberos on Cloudera with Azure AD Domain Service</h1>
+ <a class='url fn n profile-usercard-hover' href='https://social.msdn.microsoft.com/profile/Paige Liu' target='_blank'>Paige Liu</a>
+<time>    6/18/2016 7:59:00 PM</time>
+<hr>
+<div id='content'>In this <a target="_blank" href="http://blogs.msdn.com/b/pliu/archive/2016/01/02/integrating-cloudera-cluster-with-active-directory-part-1-3.aspx" rel="noopener noreferrer" title="previous blog series">previous blog series</a> we documented how to integrate Active Directory deployed in virtual machines on Azure with Cloudera. In that scenario, we need to deploy and maintain the domain controller VMs ourselves. In this article, we will use <a target="_blank" href="https://azure.microsoft.com/en-us/services/active-directory-ds/" rel="noopener noreferrer" title="Azure Active Directory Domain Service (AADDS)">Azure Active Directory Domain Service (AADDS)</a> to integrate Kerberos and single-sign-on with Cloudera.  AADDS is a managed service that lets you join Azure VMs to a domain without the need to deploy your own domain controllers.
+
+Here are the main tasks to complete:
+<ol>
+ 	<li>Enable Azure AD Domain Service. <em>By the end of this step, we will have a classic VNet managed by AADDS.  We will have a Windows VM joined to the domain with Active Directory tools to view and manage the domain services.</em></li>
+ 	<li>Connect the Azure classic VNet used with AADDS with an <a target="_blank" href="https://azure.microsoft.com/en-us/documentation/articles/resource-group-overview/" rel="noopener noreferrer" title="Azure Resource Manager (ARM)">Azure Resource Manager (ARM)</a> VNet in which the VMs will be deployed. <em>By the end of this step, we will have an ARM VNet connected to the classic VNet via VPN and managed by AADDS. AADDS currently only works with Azure classic VNet. Hopefully ARM VNet support will come in the near future, in which case this step will become unnecessary. [Update 8/2017: Azure now supports <a href="https://docs.microsoft.com/en-us/azure/virtual-network/create-peering-different-deployment-models">VNet peering between classic and ARM VNet</a> as long as the two VNets are in the same region. This step can now be greatly simplified with VNet peering if the VNets are in the same region.]</em></li>
+ 	<li>Deploy and configure the VMs. <em>By the end of this step, we will have Linux VMs joined to the domain, with Kerberos enabled. We will be able to ssh into the Linux VMs with users defined in AADDS. </em></li>
+ 	<li>Enable Kerberos on Cloudera.</li>
+</ol>
+<strong>Step 1: Enable Azure AD Domain Service</strong>
+<ol>
+ 	<li>Follow <a target="_blank" href="https://azure.microsoft.com/en-us/documentation/articles/active-directory-ds-getting-started/" rel="noopener noreferrer" title="this AADDS documentation">this AADDS documentation</a> to enable Domain Service.  Although we will connect the classic VNet used with AADDS with the ARM VNet for the VMs later in Step 2, here are a few things to plan head because they can't be changed after AADDS is enabled -</li>
+</ol>
+<p style="padding-left: 60px">a. Make sure the classic VNet to be used with AADDS is deployed in a region where your VMs will be deployed to.
+b. Make sure the address space of the classic VNet to be used with AADDS don't overlap with the address space for the ARM VNet.  For example, use 10.1.0.0/16 for the classic VNet, and 10.2.0.0/16 for the ARM VNet.
+c. When you enable AADDS, you can choose the dns name for your domain. It doesn't have to be the default "onmicrosoft.com" dns name, you can use, for example, "bigdata.local".</p>
+<p style="padding-left: 60px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/4431.DNSName.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/4431.DNSName.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px">2. Once AADDS is enabled, deploy a Windows VM to the subnet of the classic VNet managed by AADDS.</p>
+<p style="padding-left: 60px">a. Add AD and DNS tools using "Add roles and features" wizard.</p>
+<p style="padding-left: 60px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/0333.ADTools.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/0333.ADTools.png" alt="" border="0" /></a></p>
+<p style="padding-left: 60px">b. Join the VM to the AADDS domain, for example "bigdata.local", using a user that belongs to the "AAD DC Administrators" group created in the previous step.  After rebooting the VM, log in as a domain admin, we can now use the AD and DNS tools to manage the domain.</p>
+&nbsp;
+
+<strong>Step 2: Connect the "classic" VNet used with AADDS with an Azure Resource Manager (ARM) VNet in which the VMs will be deployed</strong>
+
+<em>[Update 8/2017: Azure now supports<span> </span><a href="https://docs.microsoft.com/en-us/azure/virtual-network/create-peering-different-deployment-models">VNet peering between classic and ARM VNet</a><span> </span>as long as the two VNets are in the same region. This step<span> </span>can now be greatly simplified with VNet peering if the VNets are in the same region.]</em>
+<ol>
+ 	<li>Create an ARM VNet in which we will deploy the VMs, make sure it's in the same region as the classic VNet and that its address space doesn't overlap with that of the classic VNet.</li>
+ 	<li>Follow <a target="_blank" href="https://azure.microsoft.com/en-us/documentation/articles/virtual-networks-arm-asm-s2s/" rel="noopener noreferrer" title="these steps">these steps</a> to create a gateway in the classic VNet and ARM VNet respectively, then connect the two VNets.  Note that you don't have to use the scripts in the documentation, you can create both gateways and the connection from the Azure portal.  The "shared key" used to make the connection between the two gateways can be accessed from the portal of the classic VNet:</li>
+</ol>
+<p style="padding-left: 30px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/6036.ARMVNet.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/6036.ARMVNet.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/4162.classicVNet.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/4162.classicVNet.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px">3. The classic VNet should already be configured to use AADDS for DNS in Step 1. Now configure DNS for the ARM VNet to use AADDS as well:</p>
+<p style="padding-left: 30px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/2352.ARMVNetDNS.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/2352.ARMVNetDNS.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px">4. Plan for the IP addresses you will assign to the VMs. If you deploy the VMs using <a target="_blank" href="https://github.com/liupeirong/Azure/tree/master/ClouderaAD" rel="noopener noreferrer" title="this ARM template">this Cloudera ARM template</a> in Step 3 and the address prefix for the VM subnet is, for example, 10.7.0, then the Cloudera master nodes start with 10.7.0.10, and the data nodes start with 10.7.0.20.  Add a Reverse Lookup Zone for the domain controllers and another for the VMs. Make sure to update the PTR records for the domain controllers so that they show up in their reverse lookup zone.</p>
+<p style="padding-left: 30px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/1072.reverseZones.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/1072.reverseZones.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px">5. Add the DNS records for the VMs</p>
+<p style="padding-left: 30px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/5430.LinuxDNS.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/5430.LinuxDNS.png" alt="" border="0" /></a></p>
+&nbsp;
+
+<strong>Step 3: Deploy and configure the VMs</strong>
+<ol>
+ 	<li>For Kerberos to work, we need the FQDN of the domain controllers. The host name generated by AADDS can be found in the DNS tool:</li>
+</ol>
+<p style="padding-left: 30px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/2161.DCName.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/2161.DCName.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px">2. In this example, we will use <a target="_blank" href="https://github.com/liupeirong/Azure/tree/master/ClouderaAD" rel="noopener noreferrer" title="an ARM template">an ARM template</a> originally created for a Cloudera cluster to deploy Cent OS VMs, however, Cloudera specific code is only used in Step 4. You can deploy Cloudera in another way, or you can customize the template to deploy any Linux VMs. In any case, note the following configurations that made the integration between the VMs and AADDS possible:</p>
+<p style="padding-left: 60px">a. ntp, sssd, samba, and kerberos are installed and configured on each VM (see<a target="_blank" href="https://github.com/liupeirong/Azure/blob/master/ClouderaAD/scripts/initialize-node.sh" rel="noopener noreferrer" title="initialize-node.sh"> initialize-node.sh</a> and the configuration templates in the <a target="_blank" href="https://github.com/liupeirong/Azure/tree/master/ClouderaAD/config" rel="noopener noreferrer" title="config folder">config folder</a>)
+b. AADDS domain controller names and IPs are passed to the ARM template in the following parameters so they can be automatically set in the configuration files, for example, the following values match the screenshots above. It's also important to set <em>useLdapIDMapping</em> to <em>True </em>when we use sssd rather than NIS (NIS is not supported on AADDS):</p>
+
+<pre style="padding-left: 120px"><em>"adDomainName": {"value": "bigdata.local"},</em>
+<em>"PDC": {"value": "ad-k1kxmrudcuxv"},</em>
+<em>"BDC": {"value": "LQ75SYGTK0EFQAA"},</em>
+<em>"PDCIP": {"value": "10.1.1.4"},</em>
+<em>"BDCIP": {"value": "10.1.1.5"},</em>
+<em>"useLdapIDMapping": {"Value": "<strong>True</strong>"}</em></pre>
+<p style="padding-left: 30px">Deploy <a target="_blank" href="https://github.com/liupeirong/Azure/blob/master/ClouderaAD/azuredeploy.json" rel="noopener noreferrer" title="azuredeploy.json">azuredeploy.json</a>. Once done, from the Windows VM on the classic VNet, we should be able to ping the linux VMs using their FQDN, for example contoso-mn0.bigdata.local, and vice versa. We should also be able to ping Linux VMs from each other using their FQDN. To verify reverse DNS works, run "host &lt;linux vm ip&gt;" on a Linux VM, and it should return the FQDN for that IP.</p>
+<p style="padding-left: 30px">3. Join the Linux VMs to the domain by ssh into each VM and run the following commands with root privilege:</p>
+
+<pre class="scroll"><code class="cplusplus">#join the domain with a domain admin credential
+#this should be a user in the "AAD DC Administrators" group created in Step 1
+<em>&gt; net ads join -Uadadmin@BIGDATA.LOCAL</em>
+<em>&gt; authconfig --enablesssd --enablemkhomedir --enablesssdauth --update</em>
+<em>&gt; service sssd start</em>
+<em>&gt; kinit adadmin@BIGDATA.LOCAL</em>
+#if you see an output from the following command, then everything is set up correctly
+<em>&gt; getent passwd adadmin@BIGDATA.LOCAL</em>
+ </code></pre>
+<p style="padding-left: 30px">Now we should be able to ssh into each VM using a user defined in AADDS. Up till this point, other than we leveraged the ARM template originally created for Cloudera to deploy the VMs, there's nothing specific we did for Cloudera. In fact, Cloudera bits are not yet installed on the VMs.</p>
+<strong>Step 4: Enable Kerberos on Cloudera.</strong>
+<ol>
+ 	<li>Install Cloudera on the VMs by deploying <a target="_blank" href="https://github.com/liupeirong/Azure/blob/master/ClouderaAD/azuredeploy_postad.json" rel="noopener noreferrer" title="azuredeploy_postad.json">azuredeploy_postad.json</a>. The following parameters must match what was specified when deploying <a target="_blank" href="https://github.com/liupeirong/Azure/blob/master/ClouderaAD/azuredeploy.json" rel="noopener noreferrer" title="azuredeploy.json">azuredeploy.json</a> in the previous step. (This is not necessary if you deployed Cloudera using a different method than our sample ARM template.)</li>
+</ol>
+<p style="padding-left: 60px"><em>adminUserName</em>
+<em>adminPassword</em>
+<em>dnsNamePrefix</em>
+<em>adDomainName</em>
+<em>nodeAddressPrefix</em>
+<em>numberOfDataNodes</em>
+<em>region</em>
+<em>tshirtSize</em></p>
+<p style="padding-left: 30px">2. Verify Cloudera is installed correctly by RDP into a VM (could be the Windows VM created in the AADDS classic VNet), open a browser, and access http://&lt;dnsNamePrefix&gt;-mn0.&lt;adDomainName&gt;:7180. Use the Cloudera Manager admin credential specified when deploying the template in the previous step.</p>
+<p style="padding-left: 30px">3. Follow <a target="_blank" href="https://azure.microsoft.com/en-us/documentation/articles/active-directory-ds-admin-guide-configure-secure-ldap/" rel="noopener noreferrer" title="this documentation">this documentation</a> to enable secure LDAP on AADDS. This is required by Cloudera Manager when issuing LDAPS requests to import KDC account manager credentials.</p>
+<p style="padding-left: 30px">4. If you haven't already, create an Organization Unit in AADDS. This is required because users in AADDS are created in Azure AD and synced to AADDS, only users under an Organization Unit can be created inside AADDS.</p>
+<p style="padding-left: 30px">5. Follow <a target="_blank" href="http://www.cloudera.com/documentation/enterprise/latest/topics/cm_sg_intro_kerb.html" rel="noopener noreferrer" title="this Cloudera documentation">this Cloudera documentation</a> to enable Kerberos using the wizard in Cloudera Manager</p>
+<p style="padding-left: 60px">a. Make sure to install JCE Policy file
+b. We already installed OpenLdap client library on all VMs using our template.</p>
+<p style="padding-left: 60px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/8688.Step7-1-ldaplib.png"><img style="max-width: 550px" src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/8688.Step7-1-ldaplib.png" alt="" border="0" /></a></p>
+<p style="padding-left: 60px">c. Specify domain info, note that here we specify encryption type rc4-hmac (aes256 doesn't seem to work with AADDS, however, JCE policy file is still needed for hadoop commands to work):</p>
+<p style="padding-left: 60px"> <a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/3681.ClouderaKerberos.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/3681.ClouderaKerberos.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px">6. Verify Kerberos is set up correctly by running "hdfs dfs -ls /" as the built-in hdfs user on a Cloudera VM, it should render a security error.  Create a hdfs@&lt;domain name&gt; in the Organization Unit created earlier, ssh in as this domain user and run the command again, it should succeed.</p>
+<em>(Many thanks to my colleague Bruce Nelson who enabled Kerberos on Cloudera with AADDS first and made me aware of this solution.)</em></div>
+</div></body>
+<script type='text/javascript' src='resource/jquery-1.12.1.min.js'></script>
+<script type='text/javascript' src='resource/replace.js'></script>
+</html>

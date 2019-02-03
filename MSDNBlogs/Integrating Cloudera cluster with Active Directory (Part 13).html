@@ -1,0 +1,115 @@
+<html><head>
+<meta charset='UTF-8'>
+<link href='resource/bootstrap.min.css' rel='Stylesheet' type='text/css' />
+<link href='resource/style.css' rel='Stylesheet' type='text/css' />
+</head>
+<body>
+<div id='page'>
+<h1 class='entry-title'>Integrating Cloudera cluster with Active Directory (Part 1/3)</h1>
+ <a class='url fn n profile-usercard-hover' href='https://social.msdn.microsoft.com/profile/Paige Liu' target='_blank'>Paige Liu</a>
+<time>    1/2/2016 7:30:00 PM</time>
+<hr>
+<div id='content'><em>[Update 8/2017: With Cloudera Director support on Azure, you can now automate this whole process of enabling Kerberos on a Cloudera cluster.  See this <a href="https://github.com/liupeirong/Azure/tree/master/DomainJoinedLinuxVMOnAzure/clouderadirector">Github repo</a> for instructions and scripts.]</em>
+
+In this blog post, we will show you step by step how to secure a Cloudera cluster by enabling DNS, Single-Sign-On (SSO) and Kerberos with Active Directory.  While we will deploy Active Directory and Cloudera VMs in Azure, because Azure makes deployment much easier, it doesn't have to be Azure to integrate AD with Cloudera.  Many of the steps should apply to AD and Cloudera in general.  Here's what this system topology looks like.
+
+<a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/2148.ADArchitecture.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/2148.ADArchitecture.png" alt="" border="0" /></a>
+
+The following steps are described in details.
+<ol>
+ 	<li><strong>Deploy Active Directory with HA in Azure</strong></li>
+ 	<li><strong>Deploy Linux VMs for the Cloudera cluster</strong></li>
+ 	<li><strong>Enable Active Directory DNS on the Linux VMs</strong></li>
+ 	<li><strong>Sync Linux VMs with Active Directory time service</strong></li>
+ 	<li>Join the Linux VMs to Active Directory and enable Single-Sign-On</li>
+ 	<li>Install Cloudera</li>
+ 	<li>Enable Kerberos on Cloudera</li>
+ 	<li>Enable Single-Sign-On for Cloudera web consoles</li>
+</ol>
+<div>Part 1 of this blog will cover the first 4 steps, <a target="_blank" href="http://blogs.msdn.com/b/pliu/archive/2016/01/02/integrating-cloudera-cluster-with-active-directory-part-2-3.aspx" rel="noopener noreferrer">Part 2</a> will explain how to join Linux VMs to AD and enable Single-Sign-On, and <a target="_blank" href="http://blogs.msdn.com/b/pliu/archive/2016/01/02/integrating-cloudera-cluster-with-active-directory-part-3-3.aspx" rel="noopener noreferrer">Part 3</a> will cover the remaining Cloudera specific steps.</div>
+<h3><strong>Step 1: Deploy Active Directory with HA in Azure</strong></h3>
+By the end of this step, we will have an AD forest with a primary domain controller (PDC) and a backup domain controller (BDC).  We can create this AD forest by simply deploying<a target="_blank" href="https://github.com/Azure/azure-quickstart-templates/tree/master/active-directory-new-domain-ha-2-dc" rel="noopener noreferrer"> this template</a> on Azure Quick Start Templates repo on GitHub.  Among the parameters to the template, the following two impact the rest of the components in this system:
+<div>
+<ul>
+ 	<li>Virtual Network (VNet):  the AD VMs and the Cloudera VMs must be in the same virtual network (which also implies the same region).  The AD VMs and the Cloudera VMs can be in different subnets of this VNet.</li>
+ 	<li>Domain name: this is the domain that will be used by all the VMs in this system.  In this example, we specify <em>mydomain.com</em> as our domain name.</li>
+</ul>
+</div>
+<h3><strong>Step 2: Deploy the Linux VMs for Cloudera cluster</strong></h3>
+By the end of this step, we will have 4 identical Cent OS VMs in Azure, with necessary SSO and Kerberos packages installed and /etc/krb5.conf, /etc/samba/smb.conf, /etc/sssd/sssd.conf, and /etc/ntp.conf configured.
+<ol>
+ 	<li>If we want a different subnet for Cloudera than AD, we can go to the Azure portal and create a subnet for Cloudera.  Make sure to use the name and IP address of the VNet created in Step 1 and the subnet created here as the network parameters for the template below.</li>
+ 	<li>Normally we can deploy a Cloudera cluster in Azure using <a target="_blank" href="https://github.com/Azure/azure-quickstart-templates/tree/master/cloudera-on-centos" rel="noopener noreferrer">this template</a>.  However, it uses public DNS and hosts files for domain resolution.  To integrate with AD instead, we need to refactor this template by splitting it into two parts: the deployment of the VMs, and the installation of Cloudera.  The refactored template can be found <a target="_blank" href="https://github.com/liupeirong/Azure/tree/master/ClouderaAD" rel="noopener noreferrer">here</a>.  Deploy azuredeploy.json in this step.  The following parameters must match what we have created in #1.</li>
+</ol>
+<ul>
+ 	<li style="list-style-type: none">
+<ul>
+ 	<li><em>adDomainName</em>, for example, bigdata.com</li>
+ 	<li><em>PDC</em>, the host name of the PDC, for example, adpdc</li>
+ 	<li><em>BDC</em>, the host name of the BDC, for example, adbdc</li>
+ 	<li><em>PDCIP</em>, the static private IP of the PDC, for example, 10.0.0.4</li>
+ 	<li><em>BDCIP</em>, the static private IP of the BDC, for example, 10.0.0.5</li>
+ 	<li><em>region</em>, the same region as the AD forest</li>
+ 	<li><em>virtualNetworkName</em>, the same virtual network as the AD</li>
+ 	<li><em>vnetResourceGroup</em>, the resource group where the virtual network is located, not necessarily same as the resource group the Cloudera VMs will live in</li>
+ 	<li><em>subnetName</em>, the subnet for Cloudera VM, must be created in #1 if not already exists</li>
+ 	<li><em>subnetPrefix</em>, the IP CIDR for the Cloudera subnet</li>
+ 	<li><em>nodeAddressPrefix</em>, the first 3 octets of the subnetPrefix</li>
+</ul>
+</li>
+</ul>
+We can deploy either a production or an evaluation type of cluster with any number of data nodes, for simplicity, here we will deploy an evaluation cluster with 1 master node and 3 data nodes.  If we specify <em>cloudera</em> in the <em>dnsNamePrefix</em>, and <em>bigdata.com</em> in <em>adDomainName</em>, the 4 VMs will have these FQDNs:
+<ul>
+ 	<li style="list-style-type: none">
+<ul>
+ 	<li><em>cloudera-mn0.bigdata.com</em></li>
+ 	<li><em>cloudera-dn0.<em>bigdata</em>.com</em></li>
+ 	<li><em>cloudera-dn1.<em>bigdata</em>.com</em></li>
+ 	<li><em>cloudera-dn2.<em>bigdata</em>.com</em></li>
+</ul>
+</li>
+</ul>
+<div>However, the VMs are not addressable with these domain names until we integrate the VMs with Active Directory DNS.  All the VMs have static IP addresses within the VNet.  The deployment also populates the following files in each VM with the specified AD info:</div>
+<div>
+<ul>
+ 	<li style="list-style-type: none">
+<ul>
+ 	<li>/etc/resolv.conf</li>
+ 	<li>/etc/ntp.conf</li>
+ 	<li>/etc/krb5.conf</li>
+ 	<li>/etc/samba/smb.conf</li>
+ 	<li>/etc/sssd/sssd.conf</li>
+</ul>
+</li>
+</ul>
+</div>
+<h3><em>S</em>tep 3: Enable Active Directory DNS on Linux VMs</h3>
+By the end of this step, we should be able to ping the Linux VMs with their FQDN from within the VNet.  Note that registering a domain name on the Internet is out of the scope of this blog, so here we will use the AD domain, for example, <em>bigdata.com</em> within the VNet.
+<p style="padding-left: 30px">1.  RDP into the PDC, and open the DNS Manager.  Note that if DNS Manager is not installed, install it by "Add Roles and Features" -&gt; Features -&gt; Role Administration Tools -&gt; DNS Server Tools
+2.  Add a new reverse lookup zone if there's none that corresponds to the subnet address range where the Linux VMs are located</p>
+<p style="padding-left: 60px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/1057.Step3-1-reverseAD.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/1057.Step3-1-reverseAD.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px">
+3.  Add the Linux VMs to the forward lookup zone with their static IPs, check "create/update associated PTR record"</p>
+<p style="padding-left: 60px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/3644.Step3-2-forwardAD.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/3644.Step3-2-forwardAD.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px">4.  On the Linux VMs, verify VMs are reachable by their DNS names:</p>
+
+<pre class="scroll" style="padding-left: 60px"><code class="cplusplus">hostname -i //should display the static IP of the VM
+host &lt;VM static IP&gt; //should perform DNS reverse lookup and display FQDN of the VM
+ping &lt;VM name.mydomain.com&gt; //should successfully reach any of the 4 Cloudera VMs within the VNet</code></pre>
+<h3>Step 4: Sync Linux VMs with Active Directory time service</h3>
+By default, the AD domain controllers deployed in this example are already running time service for its clients to sync.  The Linux VMs also have their /etc/ntp.conf configured to sync with AD.  If your AD doesn't have time service running, you can use the steps below to configure it.
+<p style="padding-left: 30px">1.  On the PDC, configure the Windows Time service by running this command, time.windows.com is a valid time server, or you can use another time server of your choice, restart the time service</p>
+
+<pre class="scroll" style="padding-left: 60px"><code class="cplusplus">w32tm /config /manualpeerlist:"time.windows.com" /syncfromflags:manual /reliable:yes /update
+net restart w32time</code></pre>
+<p style="padding-left: 30px">2.  On the BDC, restart the time service by running the following command:</p>
+
+<pre class="scroll" style="padding-left: 60px"><code class="cplusplus">w32tm /config /syncfromflags:domhier /update</code></pre>
+<p style="padding-left: 30px">3.  On the Linux VMs, verify time syncing with the following command, the "system peer" in the output should point to the PDC:</p>
+
+<pre class="scroll" style="padding-left: 60px"><code class="cplusplus">ntpdc -c sysinfo</code></pre>
+Now we have an AD forest with a PDC and a BDC.  We have Linux VMs addressable by AD DNS and syncing to the AD time service.  In <a target="_blank" href="http://blogs.msdn.com/b/pliu/archive/2016/01/02/integrating-cloudera-cluster-with-active-directory-part-2-3.aspx" rel="noopener noreferrer">Part 2</a> of this blog, we will join the Linux VMs to AD and enable ssh with AD users.</div>
+</div></body>
+<script type='text/javascript' src='resource/jquery-1.12.1.min.js'></script>
+<script type='text/javascript' src='resource/replace.js'></script>
+</html>

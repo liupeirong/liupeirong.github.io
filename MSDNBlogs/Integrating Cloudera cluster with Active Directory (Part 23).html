@@ -1,0 +1,36 @@
+<html><head>
+<meta charset='UTF-8'>
+<link href='resource/bootstrap.min.css' rel='Stylesheet' type='text/css' />
+<link href='resource/style.css' rel='Stylesheet' type='text/css' />
+</head>
+<body>
+<div id='page'>
+<h1 class='entry-title'>Integrating Cloudera cluster with Active Directory (Part 2/3)</h1>
+ <a class='url fn n profile-usercard-hover' href='https://social.msdn.microsoft.com/profile/Paige Liu' target='_blank'>Paige Liu</a>
+<time>    1/2/2016 7:34:00 PM</time>
+<hr>
+<div id='content'><p>In <a href="http://blogs.msdn.com/b/pliu/archive/2016/01/02/integrating-cloudera-cluster-with-active-directory-part-1-3.aspx" target="_blank">Part 1</a> of this blog, we covered the first 4 steps, here we will describe how to join the LInux VMs to AD.<ol>
+<li>Deploy Active Directory with HA in Azure</li>
+<li>Deploy Linux VMs for the Cloudera cluster</li>
+<li>Enable Active Directory DNS on the Linux VMs</li>
+<li>Sync Linux VMs to Active Directory time service</li>
+<li><strong>Join the Linux VMs to Active Directory and enable Single-Sign-On</strong></li>
+<li>Install Cloudera</li>
+<li>Enable Kerberos on Cloudera</li>
+<li>Enable Single-Sign-On for Cloudera web consoles</li>
+</ol><h3>Step 5: Join the Linux VMs to Active Directory and enable Single-Sign-On</h3><div>By the end of this step, we will be able to ssh into Linux VMs using the users created in Active Directory.</div><div style="padding-left: 30px">&nbsp;&nbsp;</div><div style="padding-left: 30px">1. Login to each Linux VM, and run the following commands to join the Linux VMs to AD</div><div>
+<pre class="scroll" style="padding-left: 60px"><code class="cplusplus">net ads join -U&lt;a domain admin user name&gt;<br>net ads testjoin -P //verify the VM has joined the domain</code></pre>
+</div><div style="padding-left: 30px">2. Run the following commands to update sssd</div><pre class="scroll" style="padding-left: 60px"><code class="cplusplus">authconfig --enablesssd --enablemkhomedir --enablesssdauth --update<br>service sssd start</code>&nbsp;</pre><div style="padding-left: 30px">3. RDP into the PDC and BDC, open cmd console as Administrator, and enable Linux identity management in AD by running the following commands, restart the Windows VMs after the commands finish.</div><pre class="scroll" style="padding-left: 60px"><code class="cplusplus">//install the administration tools for Identity Management for UNIX<br>dism.exe /online /enable-feature /featurename:adminui /all<br>//install Server for Network Information Server (NIS)<br>dism.exe /online /enable-feature /featurename:nis /all <br>//install Password Synchronization<br>dism.exe /online /enable-feature /featurename:psync /all </code></pre><div style="padding-left: 30px">4. In PDC, open Active Directory Users and Computers, if it's not installed, go to Add Roles and Features -&gt; Remote Server Administration Tools -&gt; Role Administration Tools -&gt; AD DS and AD LDS Tools -&gt; AD DS Tools. &nbsp;Optionally create an organizational unit for the Cloudera environment, add groups, for example, hadoopadmin and hadoopuser, then set their NIS domain the the AD domain:</div><div style="padding-left: 60px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/6607.Step5-1-NISdomain.png" original-url="http://blogs.msdn.com/cfs-file.ashx/__key/communityserver-blogs-components-weblogfiles/00-00-01-67-51/6607.Step5_2D00_1_2D00_NISdomain.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/6607.Step5-1-NISdomain.png" original-url="http://blogs.msdn.com/resized-image.ashx/__size/550x0/__key/communityserver-blogs-components-weblogfiles/00-00-01-67-51/6607.Step5_2D00_1_2D00_NISdomain.png" alt="" border="0"></a></div><div style="padding-left: 30px">5. Add users to the organizational unit in the same NIS domain, and assign them to the groups created in the previous step. &nbsp;If a user has a different primary group, make sure to explicitly add the user to the target group in the "Members" tab (not the UNIX tab) of the group.&nbsp;</div><div style="padding-left: 60px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/7610.Step5-2-NISuser.png" original-url="http://blogs.msdn.com/cfs-file.ashx/__key/communityserver-blogs-components-weblogfiles/00-00-01-67-51/7610.Step5_2D00_2_2D00_NISuser.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/7610.Step5-2-NISuser.png" original-url="http://blogs.msdn.com/resized-image.ashx/__size/550x0/__key/communityserver-blogs-components-weblogfiles/00-00-01-67-51/7610.Step5_2D00_2_2D00_NISuser.png" alt="" border="0"></a></div><div style="padding-left: 30px">6. Move the Linux VMs which joined the AD in #1 to the Cloudera organization unit, and set them to same NIS domain&nbsp;</div><div style="padding-left: 60px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/6305.Step5-3-NISvm.png" original-url="http://blogs.msdn.com/cfs-file.ashx/__key/communityserver-blogs-components-weblogfiles/00-00-01-67-51/6305.Step5_2D00_3_2D00_NISvm.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/6305.Step5-3-NISvm.png" original-url="http://blogs.msdn.com/resized-image.ashx/__size/550x0/__key/communityserver-blogs-components-weblogfiles/00-00-01-67-51/6305.Step5_2D00_3_2D00_NISvm.png" alt="" border="0"></a></div><div style="padding-left: 30px">7. Verify we can now ssh into Linux VMs using the AD users</div><div style="padding-left: 30px">8. Optionally we can add AD groups as sudoers as shown in the following example. &nbsp;We can also disable the initial Linux user that was created with the VM, and from now on only allow AD users to login.</div><div>
+<pre class="scroll" style="padding-left: 60px"><code class="cplusplus">%hadoopadmin ALL=(ALL) NOPASSWD: ALL</code></pre>
+</div><p>Although we have deployed Linux VMs that have disk configuration and host name conventions configured for Cloudera, the rest of the configuration for joining AD and Single-Sign-On up until this point is not Cloudera specific. &nbsp;You can join any Linux VMs to AD using the steps above. &nbsp;The key here is the configuration files we deployed on the Linux VMs. &nbsp;</p><ul>
+<li>/etc/resolv.conf</li>
+<li>/etc/ntp.conf</li>
+<li>/etc/krb5.conf</li>
+<li>/etc/samba/smb.conf</li>
+<li>/etc/sssd/sssd.conf</li>
+</ul><div>In <a href="http://blogs.msdn.com/b/pliu/archive/2016/01/02/integrating-cloudera-cluster-with-active-directory-part-3-3.aspx" target="_blank">Part 3</a> of this blog, we will cover the remaining Cloudera specific steps to enable Kerberos and Single-Sign-On for web consoles.&nbsp;</div></p>
+</div>
+</div></body>
+<script type='text/javascript' src='resource/jquery-1.12.1.min.js'></script>
+<script type='text/javascript' src='resource/replace.js'></script>
+</html>

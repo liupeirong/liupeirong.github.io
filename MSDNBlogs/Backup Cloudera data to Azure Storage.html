@@ -1,0 +1,40 @@
+<html><head>
+<meta charset='UTF-8'>
+<link href='resource/bootstrap.min.css' rel='Stylesheet' type='text/css' />
+<link href='resource/style.css' rel='Stylesheet' type='text/css' />
+</head>
+<body>
+<div id='page'>
+<h1 class='entry-title'>Backup Cloudera data to Azure Storage</h1>
+ <a class='url fn n profile-usercard-hover' href='https://social.msdn.microsoft.com/profile/Paige Liu' target='_blank'>Paige Liu</a>
+<time>    6/19/2016 10:22:00 PM</time>
+<hr>
+<div id='content'>Azure Blob Storage supports an HDFS interface which can be accessed by HDFS clients using the syntax <em>wasb://</em>.  The <a title="hadoop-azure module" href="https://hadoop.apache.org/docs/stable2/hadoop-azure/index.html" target="_blank">hadoop-azure module</a> which implements this interface is distributed with Apache Hadoop, but is not configured out of the box in Cloudera.  In this blog, we will provide instructions on how to backup Cloudera data to Azure storage.
+
+The steps here have been verified on a default deployment of Cloudera CDH cluster on Azure.
+<p style="padding-left: 30px">1. Go to Cloudera Manager, select <strong>HDFS</strong>, then <strong>Configuration</strong>, Search for "core-site", and add the following configuration to <strong>Cluster-wide Advanced Configuration Snippet (Safety Valve) for core-site.xml</strong>, replace with your storage account name and key:</p>
+
+<pre class="scroll" style="padding-left: 30px"><code class="js">Name: fs.azure.account.key.&lt;your_storage_account&gt;.blob.core.windows.net
+Value: &lt;your_storage_access_key&gt;</code></pre>
+<p style="padding-left: 30px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/1385.wasb1.png" original-url="http://blogs.msdn.com/cfs-file.ashx/__key/communityserver-blogs-components-weblogfiles/00-00-01-71-47/1385.wasb1.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/1385.wasb1.png" original-url="http://blogs.msdn.com/resized-image.ashx/__size/550x0/__key/communityserver-blogs-components-weblogfiles/00-00-01-71-47/1385.wasb1.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px">2. Redeploy stale client configurations, then restart all Cloudera services from Cloudera Manager.</p>
+<p style="padding-left: 30px">3. To test that Cloudera can access files in Azure storage, put some files in Azure storage.  You can do so by using command line tools like <a title="AzCopy" href="https://azure.microsoft.com/en-us/documentation/articles/storage-use-azcopy/" target="_blank">AzCopy</a>, or UI tools such as <a title="Visual Studio Server Explorer" href="https://azure.microsoft.com/en-us/documentation/articles/vs-azure-tools-storage-resources-server-explorer-browse-manage/" target="_blank">Visual Studio Server Explorer</a> or <a title="Azure Storage Explorer" href="https://azurestorageexplorer.codeplex.com/" target="_blank">Azure Storage Explorer</a>.</p>
+<p style="padding-left: 30px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/8372.wasb2.png" original-url="http://blogs.msdn.com/cfs-file.ashx/__key/communityserver-blogs-components-weblogfiles/00-00-01-71-47/8372.wasb2.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/8372.wasb2.png" original-url="http://blogs.msdn.com/resized-image.ashx/__size/550x0/__key/communityserver-blogs-components-weblogfiles/00-00-01-71-47/8372.wasb2.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px">4. SSH into any Cloudera node, run the following command.  You may see some warnings, but make sure your can see the files in your Azure storage account.  Note that if you don't specify a destination folder name, you must have the trailing slash in the wasb URL, as shown in the following example:</p>
+
+<pre class="scroll" style="padding-left: 30px"><code class="js">hdfs dfs -ls wasb://&lt;your_container&gt;@&lt;your_account&gt;.blob.core.windows.net/
+ </code></pre>
+<p style="padding-left: 30px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/1537.wasb3.png" original-url="http://blogs.msdn.com/cfs-file.ashx/__key/communityserver-blogs-components-weblogfiles/00-00-01-71-47/1537.wasb3.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/1537.wasb3.png" original-url="http://blogs.msdn.com/resized-image.ashx/__size/550x0/__key/communityserver-blogs-components-weblogfiles/00-00-01-71-47/1537.wasb3.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px">5. Run distcp on any Cloudera node to copy data from HDFS to Azure Storage.</p>
+
+<pre class="scroll" style="padding-left: 30px"><code class="js"># Run this command under a user who has access to the source HDFS files, 
+# for example, the HDFS superuser hdfs
+hadoop distcp /&lt;hdfs_src&gt; wasb://&lt;your_container&gt;@&lt;your_account&gt;.blob.core.windows.net/</code></pre>
+<p style="padding-left: 30px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/7245.wasb4.png" original-url="http://blogs.msdn.com/cfs-file.ashx/__key/communityserver-blogs-components-weblogfiles/00-00-01-71-47/7245.wasb4.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/7245.wasb4.png" original-url="http://blogs.msdn.com/resized-image.ashx/__size/550x0/__key/communityserver-blogs-components-weblogfiles/00-00-01-71-47/7245.wasb4.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px">Now you should be able to see the source HDFS content showing up in Azure storage:</p>
+<p style="padding-left: 30px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/7802.wasb5.png" original-url="http://blogs.msdn.com/cfs-file.ashx/__key/communityserver-blogs-components-weblogfiles/00-00-01-71-47/7802.wasb5.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/71/47/7802.wasb5.png" original-url="http://blogs.msdn.com/resized-image.ashx/__size/550x0/__key/communityserver-blogs-components-weblogfiles/00-00-01-71-47/7802.wasb5.png" alt="" border="0" /></a></p>
+For more information about Hadoop support for Azure storage, please see <a title="this documentation" href="https://hadoop.apache.org/docs/stable2/hadoop-azure/index.html" target="_blank">this documentation</a>.</div>
+</div></body>
+<script type='text/javascript' src='resource/jquery-1.12.1.min.js'></script>
+<script type='text/javascript' src='resource/replace.js'></script>
+</html>

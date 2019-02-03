@@ -1,0 +1,92 @@
+<html><head>
+<meta charset='UTF-8'>
+<link href='resource/bootstrap.min.css' rel='Stylesheet' type='text/css' />
+<link href='resource/style.css' rel='Stylesheet' type='text/css' />
+</head>
+<body>
+<div id='page'>
+<h1 class='entry-title'>Integrating Cloudera cluster with Active Directory (Part 3/3)</h1>
+ <a class='url fn n profile-usercard-hover' href='https://social.msdn.microsoft.com/profile/Paige Liu' target='_blank'>Paige Liu</a>
+<time>    1/2/2016 7:36:00 PM</time>
+<hr>
+<div id='content'>In <a target="_blank" href="http://blogs.msdn.com/b/pliu/archive/2016/01/02/integrating-cloudera-cluster-with-active-directory-part-1-3.aspx" rel="noopener noreferrer">Part 1</a> and <a target="_blank" href="http://blogs.msdn.com/b/pliu/archive/2016/01/02/integrating-cloudera-cluster-with-active-directory-part-2-3.aspx" rel="noopener noreferrer">Part 2</a> of this blog, we covered the first 5 steps, here we will describe the remaining Cloudera specific steps to enable Kerberos and Single-Sign-On for web consoles.
+<ol>
+ 	<li>Deploy Active Directory with HA in Azure</li>
+ 	<li>Deploy Linux VMs for the Cloudera cluster</li>
+ 	<li>Enable Active Directory DNS on the Linux VMs</li>
+ 	<li>Sync Linux VMs to Active Directory time service</li>
+ 	<li>Join the Linux VMs to Active Directory and enable Single-Sign-On</li>
+ 	<li><strong>Install Cloudera</strong></li>
+ 	<li><strong>Enable Kerberos on Cloudera</strong></li>
+ 	<li><strong>Enable Single-Sign-On for Cloudera web consoles</strong></li>
+</ol>
+<h3>Step 6: Install Cloudera</h3>
+<div>By the end of this step, we should have Cloudera bits installed on the Linux VMs.  We should be able to access Cloudera Manager console using the Cloudera Manager admin specified during installation.</div>
+<div></div>
+<div style="padding-left: 30px">1. Install Cloudera using the template azuredeploy_postad.json in this <a target="_blank" href="https://github.com/liupeirong/Azure/tree/master/ClouderaAD" rel="noopener noreferrer">GitHub repo</a>.  The following parameters must match what was created or modified in previous steps.</div>
+<div>
+<ul>
+ 	<li style="list-style-type: none">
+<ul>
+ 	<li>adminUserName: this could be the AD sudo user if the default user created with the VM has been disabled</li>
+ 	<li>adminPassword</li>
+ 	<li>dnsNamePrefix</li>
+ 	<li>adDomainName</li>
+ 	<li>nodeAddressPrefix</li>
+ 	<li>numberOfDataNodes</li>
+ 	<li>region</li>
+ 	<li>tshirtSize</li>
+</ul>
+</li>
+</ul>
+</div>
+<div style="padding-left: 30px">2. Verify Cloudera is installed correctly by RDP into a VM within the same VNet, open a browser, and access http://&lt;<em>dnsNamePrefix</em>&gt;-mn0.&lt;<em>adDomainName</em>&gt;:7180.  Use the Cloudera Manager admin credential specified in the template parameters.</div>
+<h3>Step 7: Enable Kerberos on Cloudera</h3>
+<div>Follow the steps outlined in <a target="_blank" href="http://www.cloudera.com/content/www/en-us/documentation/enterprise/5-4-x/topics/cm_sg_intro_kerb.html" rel="noopener noreferrer">this Cloudera documentation</a> to enable Kerberos on Cloudera with AD.  Most of the steps are fairly clear in the documentation, however, the following steps may need more details:</div>
+<div style="padding-left: 30px">1. Since we deployed Cent OS VMs, the default Kerberos encryption type is AES, so JCE policy file is required.  The simplest way to install this file is to go to Cloudera Manager -&gt; Hosts -&gt; Re-run Upgrade Wizard -&gt; check Install JDK and JCE policy file.  Note that this will revert some configuration values to default.  Note down these values, and after the installation, revert them back.</div>
+<div style="padding-left: 30px">
+<div>2. We already installed OpenLdap client library on all Linux VMs.</div>
+<div style="padding-left: 30px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/8688.Step7-1-ldaplib.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/8688.Step7-1-ldaplib.png" alt="" border="0" /></a></div>
+</div>
+<div style="padding-left: 30px">3. Specify Kerberos encryption the same as the output of "klist -e" on a Linux VM:</div>
+<div style="padding-left: 60px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/4505.Step7-1-CMencrypt.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/4505.Step7-1-CMencrypt.png" alt="" border="0" /></a></div>
+<div style="padding-left: 30px">4. When importing KDC account manager credentials, Cloudera Manager issues LDAP requests over SSL.  We need to enable LDAP over SSL on AD.</div>
+<div style="padding-left: 30px">
+<ul>
+ 	<li>Add server role "Certificate Authority" to the PDC.  After installation, complete configuration with default options.</li>
+ 	<li>Run mmc on PDC, add "Certificates" snapin, Computer Account -&gt; Local Computer -&gt; Personal -&gt; Certificates -&gt; All Tasks -&gt; Request New Certificate to request a certificate for Kerberos authentication.  You may need to restart both PDC and BDC after this change.</li>
+</ul>
+</div>
+<div style="padding-left: 90px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/2642.Step7-4-cert.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/2642.Step7-4-cert.png" alt="" border="0" /></a></div>
+<div style="padding-left: 90px"></div>
+<div style="padding-left: 30px">5. If we created an Organizational Unit (OU) in AD, the credential used to generate other credentials must be granted delegation rights to administer user accounts in that OU:</div>
+<div style="padding-left: 90px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/8105.Step7-5-delegate.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/8105.Step7-5-delegate.png" alt="" border="0" /></a></div>
+<div style="padding-left: 30px">6. Complete the wizard.  Now that we enabled Kerberos, if we run the following commands on a Cloudera VM, we should get a security error:</div>
+<pre class="scroll" style="padding-left: 60px"><code class="cplusplus">sudo su hdfs
+hdfs dfs -ls / 
+//should display security error</code></pre>
+<p style="padding-left: 30px">7. Create the hadoop superuser hdfs in AD in the same NIS domain.  ssh in as hdfs@&lt;domain name&gt;, run the above command again, it should succeed.
+8. Create hadoop users in AD in the same NIS domain, create their home directory with hdfs, then log in as a hadoop user, and run mapreduce job.</p>
+
+<pre class="scroll" style="padding-left: 60px"><code class="cplusplus">//log in as hdfs, create home directory for each hadoop user
+hdfs dfs -mkdir /user/alice
+hdfs dfs -chown alice /user/alice
+ 
+//log in as a hadoop user, for example, then run mapreduce
+hadoop jar /opt/cloudera/parcels/CDH/lib/hadoop-mapreduce/hadoop-mapreduce-examples.jar pi 10 10000 </code></pre>
+<h3>Step 8: Enable Single-Sign-On for Cloudera web consoles</h3>
+<ol>
+ 	<li>Follow the <a target="_blank" href="http://www.cloudera.com/content/www/en-us/documentation/enterprise/5-4-x/topics/cm_sg_web_auth.html" rel="noopener noreferrer">Cloudera documentation</a> to enable Single-Sign-On using AD credentials. Once enabled, it will prompt for user credential when we open, for example, Yarn ResourceManager Web UI.  We need to provide the fully qualified user name, for example, someone@bigdata.com.</li>
+ 	<li>To enable AD authentication for Cloudera Manager console, configure External Authentication:</li>
+</ol>
+<p style="padding-left: 60px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/1882.Step7-8-CMauth.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/1882.Step7-8-CMauth.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px">Note that users must be explicitly added to the AD groups specified here, for example,</p>
+<p style="padding-left: 60px"><a href="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/4062.Step7-8-Group.png"><img src="media/MSDNBlogsFS/prod.evol.blogs.msdn.com/CommunityServer.Blogs.Components.WeblogFiles/00/00/01/67/51/4062.Step7-8-Group.png" alt="" border="0" /></a></p>
+<p style="padding-left: 30px">Restart Cloudera Manager server:</p>
+
+<pre class="scroll" style="padding-left: 60px"><code class="cplusplus">service cloudera-scm-server restart</code></pre>
+All done. In summary, we started from scratch, created an AD forest, deployed a Cloudera cluster, enabled DNS and joined the Cloudera cluster VMs to the AD.  Finally we enabled authentication on Cloudera and web consoles using the credentials managed by AD.</div>
+</div></body>
+<script type='text/javascript' src='resource/jquery-1.12.1.min.js'></script>
+<script type='text/javascript' src='resource/replace.js'></script>
+</html>

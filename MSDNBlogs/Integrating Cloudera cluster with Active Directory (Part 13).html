@@ -26,7 +26,7 @@ The following steps are described in details.
  	<li>Enable Kerberos on Cloudera</li>
  	<li>Enable Single-Sign-On for Cloudera web consoles</li>
 </ol>
-<div>Part 1 of this blog will cover the first 4 steps, <a target="_blank" href="http://blogs.msdn.com/b/pliu/archive/2016/01/02/integrating-cloudera-cluster-with-active-directory-part-2-3.aspx" rel="noopener noreferrer">Part 2</a> will explain how to join Linux VMs to AD and enable Single-Sign-On, and <a target="_blank" href="http://blogs.msdn.com/b/pliu/archive/2016/01/02/integrating-cloudera-cluster-with-active-directory-part-3-3.aspx" rel="noopener noreferrer">Part 3</a> will cover the remaining Cloudera specific steps.</div>
+<div>Part 1 of this blog will cover the first 4 steps, <a target="_blank" href="Integrating%20Cloudera%20cluster%20with%20Active%20Directory%20(Part%2023).html" rel="noopener noreferrer">Part 2</a> will explain how to join Linux VMs to AD and enable Single-Sign-On, and <a target="_blank" href="Integrating%20Cloudera%20cluster%20with%20Active%20Directory%20(Part%2033).html" rel="noopener noreferrer">Part 3</a> will cover the remaining Cloudera specific steps.</div>
 <h3><strong>Step 1: Deploy Active Directory with HA in Azure</strong></h3>
 By the end of this step, we will have an AD forest with a primary domain controller (PDC) and a backup domain controller (BDC).  We can create this AD forest by simply deploying<a target="_blank" href="https://github.com/Azure/azure-quickstart-templates/tree/master/active-directory-new-domain-ha-2-dc" rel="noopener noreferrer"> this template</a> on Azure Quick Start Templates repo on GitHub.  Among the parameters to the template, the following two impact the rest of the components in this system:
 <div>
@@ -108,7 +108,7 @@ net restart w32time</code></pre>
 <p style="padding-left: 30px">3.  On the Linux VMs, verify time syncing with the following command, the "system peer" in the output should point to the PDC:</p>
 
 <pre class="scroll" style="padding-left: 60px"><code class="cplusplus">ntpdc -c sysinfo</code></pre>
-Now we have an AD forest with a PDC and a BDC.  We have Linux VMs addressable by AD DNS and syncing to the AD time service.  In <a target="_blank" href="http://blogs.msdn.com/b/pliu/archive/2016/01/02/integrating-cloudera-cluster-with-active-directory-part-2-3.aspx" rel="noopener noreferrer">Part 2</a> of this blog, we will join the Linux VMs to AD and enable ssh with AD users.</div>
+Now we have an AD forest with a PDC and a BDC.  We have Linux VMs addressable by AD DNS and syncing to the AD time service.  In <a target="_blank" href="Integrating%20Cloudera%20cluster%20with%20Active%20Directory%20(Part%2023).html" rel="noopener noreferrer">Part 2</a> of this blog, we will join the Linux VMs to AD and enable ssh with AD users.</div>
 </div></body>
 <script type='text/javascript' src='resource/jquery-1.12.1.min.js'></script>
 <script type='text/javascript' src='resource/replace.js'></script>

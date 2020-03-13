@@ -1,0 +1,46 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "mspOfferName": {
+            "value": "paigespizza"
+        },
+        "rgName": {
+            "value": "pliulighthouserg"
+        },
+        "mspOfferDescription": {
+            "value": "paige's pizza service"
+        },
+        "managedByTenantId": {
+            "value": "<paigespizza tenant id>"
+        },
+        "authorizations": {
+            "value": [
+		        {
+                    "principalId": "c635a3b6-b7e0-4668-ae39-b717993ee9c4",
+                    "principalIdDisplayName": "ops group",
+                    "roleDefinitionId": "b24988ac-6180-42a0-ab88-20f7382dd24c" 
+                },
+		        {
+                    "principalId": "c635a3b6-b7e0-4668-ae39-b717993ee9c4",
+                    "principalIdDisplayName": "ops group",
+                    "roleDefinitionId": "36243c78-bf99-498c-9df9-86d9f8d28608" 
+                },
+                {
+                    "principalId": "c635a3b6-b7e0-4668-ae39-b717993ee9c4",
+                    "principalIdDisplayName": "ops group",
+                    "roleDefinitionId": "91c1777a-f3dc-4fae-b103-61d183457e46"
+                },
+                {
+                    "principalId": "c635a3b6-b7e0-4668-ae39-b717993ee9c4",
+                    "principalIdDisplayName": "ops group",
+                    "roleDefinitionId": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9",
+                    "delegatedRoleDefinitionIds": [
+                        "b24988ac-6180-42a0-ab88-20f7382dd24c",
+                        "92aaf0da-9dab-42b6-94a3-d43ce8d16293"
+                    ]
+                }
+            ]
+        }
+    }
+}

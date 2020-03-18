@@ -1,5 +1,6 @@
 ## Index
 
+* [The benefits and limitations of Azure Lighthouse](azureLighthouse)
 * [Install jar from Azure DevOps private feed to Azure Databricks](installJarFromADOFeedToAzureDatabricks)
 * [Customize PostgreSQL data folder](postgresSetup)
 * [Access Azure AD protected Azure Functions using Postman](postmanAzureFunctions)

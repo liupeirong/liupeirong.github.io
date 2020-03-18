@@ -7,7 +7,7 @@ Additionally, Lighthouse provides the service provider a view of all their custo
 
 Lighthouse does not dictate how you deploy the Azure resources.  You can still use Azure Resource Manager (ARM) templates, Terraform, Azure Cli, or any other tools of choice for deployment.  It's what credentials to use and how you get the permissions for the credentials that are different. 
 
-For example, you can use customize [this ARM template](rgDRM.json) with [this parameter file](rgDRM_param.json).  By default, it requests the [permissions specified in the ARM template]() on [2 resource groups]() for a [group]() in your AAD tenant.  Once the subscription owner of your customer created these 2 resource groups and ran this ARM template, whoever, human user or service principal, is in the group will have these permissions to operate on the resource groups. 
+For example, you can use customize [this ARM template](rgDRM.json) with [this parameter file](rgDRM_param.json).  By default, it requests the [permissions specified in the ARM template](rgDRM_param.json#L22) on [2 resource groups](rgDRM.json#L61) for a [group](rgDRM_param.json#L20) in your AAD tenant.  Once the subscription owner of your customer created these 2 resource groups and ran this ARM template, whoever, human user or service principal, is in the group will have these permissions to operate on the resource groups. 
 
 In the Azure Portal, you as a service provider can search for "My Customers", and you will see this view of all your customers.  You can even navigate to their resources right there, without signing into their tenant.
 

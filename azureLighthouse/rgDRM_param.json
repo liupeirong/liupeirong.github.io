@@ -37,8 +37,8 @@
                     "roleDefinitionId": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9",
                     "delegatedRoleDefinitionIds": [
                         "b24988ac-6180-42a0-ab88-20f7382dd24c",
-						"2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
-						"db58b8e5-c6ad-4a2a-8342-4190687cbf4a",
+                        "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+                        "db58b8e5-c6ad-4a2a-8342-4190687cbf4a",
                         "92aaf0da-9dab-42b6-94a3-d43ce8d16293"
                     ]
                 }

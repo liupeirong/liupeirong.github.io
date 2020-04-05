@@ -93,6 +93,6 @@ With the code and models mounted, the inner workings of the pod is very similar 
 *  The port that Flask listens on is not 9090. In my case it's a port in the 30000 range.
 
 The pod looks like this:
-<img src="images/amlpod.png" alt="Azure Machine Learning Pod image" />
+<img src="images/amlPod.png" alt="Azure Machine Learning Pod image" />
 
 If you need to debug the pod running the Azure ML service or run the pod yourself, you can use kubectl to [interact with the pod](https://kubernetes.io/docs/reference/kubectl/cheatsheet/#interacting-with-running-pods), or you can [ssh into the AKS node](https://docs.microsoft.com/en-us/azure/aks/ssh). 

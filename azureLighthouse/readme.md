@@ -8,7 +8,15 @@ Additionally, Lighthouse provides the service provider a view of all their custo
 ### How to use Azure Lighthouse
 Lighthouse does not dictate how you develop or package your applications, or how you deploy applications and Azure resources.  You can use Azure Resource Manager (ARM) templates, Terraform, Azure Cli, or any other tool of choice for deployment.  It's what identities to use and how you get permissions for the identities that are different. 
 
-For example, as a service provider, you can customize [this ARM template](rgDRM.json) with [this parameter file](rgDRM_param.json).  By default, it requests the [permissions specified in the ARM template](rgDRM_param.json#L22) on [2 resource groups](rgDRM.json#L61) for a [group](rgDRM_param.json#L20) in your own AAD tenant.  Once the subscription owner of your customer created these 2 resource groups and ran this ARM template, a human user or a service principal in this group will have these permissions to operate on the customer's resource groups. 
+For example, as a service provider, you can customize [this ARM template](rgDRM.json) with [this parameter file](rgDRM_param.json).  By default, it requests the [permissions specified in the ARM template](rgDRM_param.json#L22) on [2 resource groups](rgDRM.json#L61) for a [group](rgDRM_param.json#L20) in your own AAD tenant.  Once the subscription owner of your customer created these 2 resource groups and ran this ARM template, a human user or a service principal in this group will have these permissions to operate on the customer's resource groups.  To run the ARM template as a customer, make sure you are in the AAD tenant and subscription that you want the provider to manage:
+
+```bash
+# make sure you are in the right subscription as a customer
+az account show
+
+# run the template to grant access to your provider
+az deployment sub create --location westus2 --template-file rgDRM.json --parameters rgDRM_param.json
+```
 
 In the Azure Portal, as a service provider you can search for "My Customers", and see this view of all your customers.  You can even navigate to their resources right there, without signing into their tenant.
 

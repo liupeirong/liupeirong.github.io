@@ -20,12 +20,12 @@ Here are the main steps to build this out in Azure:
 6. Authenticate and connect edge3 using the generated certificates as the child of edge4.
 7. Deploy the simulated temperature module to edge3 and verify the messages are received in IoT Hub.
 
-## Why is it difficult?
+## What did I learn?
+
+All the above steps are straightforward except step 6. The following are some of the key learnings from trying to make it work.
 
 [Provision IoT Edge device at scale using X.509 certificates](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-provision-devices-at-scale-linux-x509?view=iotedge-2020-11&tabs=individual-enrollment) finally documents how to use CA signed certificates for authentication with Azure IoT Device Provisioning Service. However, in [Authenticate a downstream device], it stated "Automatic provisioning downstream devices with the Azure IoT Hub Device Provisioning Service (DPS) is not supported."
 [Configure gateways for IoT Edge devices](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-connect-downstream-iot-edge-device?view=iotedge-2020-11&tabs=azure-portal) focuses on configure the parent-child relatioship rather than how to authenticate the lower layer edge device.
-
-## What did I learn?
 
 ### Register the downstream edge in IoT Hub without Internet connection
 
@@ -50,6 +50,8 @@ Copy the root certificate to the downstream edge and trust it.
 sudo cp <path>/<root ca certificate>.pem /usr/local/share/ca-certificates/<root ca certificate>.pem.crt
 sudo update-ca-certificates
 ```
+
+Register the IoT Edge as self-signed cert. Then configure parent/child relationship in IoT Hub
 
 Modify the downstream edge device's /etc/aziot/config.toml to use manual provisioning with X.509:
 

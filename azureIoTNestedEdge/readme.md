@@ -27,7 +27,7 @@ The document [Configure gateways for IoT Edge devices](https://docs.microsoft.co
 
 ### Self-signed vs. (private or enterpise) CA signed certificates
 
-My understanding is that a __self-signed__ certificate is not signed with any authority, which is different from a certificate signed by a private or enterprise authority. The latter is still a __CA-signed__ certificate even though the CA is not a trusted commericial certificate authority such as Baltimore, Verisign, Digicert, or GlobalSign.
+My understanding is that a __self-signed__ certificate is not signed with any authority, which is different from a certificate signed by a private or enterprise authority. The latter is still a __CA-signed__ certificate even though the CA is not a trusted commericial certificate authority such as Baltimore, Verisign, Digicert, or GlobalSign. CA signed certificate is verified by tracing the chaing and check if the root authority is trusted. Self signed certificate doesn't have an authority so the certificate is verified by comparing thumbprints.
 
 Since most of our manufacturing customers have their own enterprise certificate authority (CA), I wanted to understand how CA signed certificates work. [Generate demo certificates tutorial](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11) create demo CA signed certificates.
 

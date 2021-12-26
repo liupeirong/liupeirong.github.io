@@ -39,12 +39,12 @@ Turns out for [manual registration of an edge device](https://docs.microsoft.com
 To provision the parent edge with DPS, it's important to note -
 
 * Use the "full-chain" rather than the leaf identity certificate for the parent edge.
-* In `/etc/aziot/config.toml`, under the section of DPS provisioning, add a line to specify `iothub_hostname`. DPS knows which IoT Hub it connects to, but it seems that the edge modules may not know, so when you later deploy the required modules to the parent edge, it will complain about unknown `iothub_hostname`.
+* In `/etc/aziot/config.toml`, under the section of DPS provisioning, add a line to specify `iothub_hostname`. DPS knows which IoT Hub it connects to, but it seems that the edge modules may not know, so when we later deploy the required modules to the parent edge, it will complain about unknown `iothub_hostname`.
 
-With the parent edge provisioned and registered, the next step is to [configure it as a gateway](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-transparent-gateway?view=iotedge-2020-11). You must [deploy the necessary modules to the parent edge](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-connect-downstream-iot-edge-device?view=iotedge-2020-11&tabs=azure-portal#deploy-modules-to-top-layer-devices) so it can support the child edge. Verify the following is working from the child edge machine before proceeding further -
+With the parent edge provisioned and registered, the next step is to [configure it as a gateway](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-transparent-gateway?view=iotedge-2020-11). We must [deploy the necessary modules to the parent edge](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-connect-downstream-iot-edge-device?view=iotedge-2020-11&tabs=azure-portal#deploy-modules-to-top-layer-devices) so it can support the child edge. Verify the following is working from the child edge machine before proceeding further -
 
-* `curl https://<parentFQDN>/v2/_catalog` returns an array of docker images in your container registry, or an empty array.
-* `docker pull <parentFQDN>/<a_docker_image>` correctly pulls the image. Note that if you don't sepcify a FQDN or IP, by default docker will try to pull from Docker Hub. That's why we need to specify FQDN not just hostname during edge provisioning.
+* `curl https://<parentFQDN>/v2/_catalog` returns an array of docker images in our container registry, or an empty array.
+* `docker pull <parentFQDN>/<a_docker_image>` correctly pulls the image. Note that if we don't sepcify a FQDN or IP, by default docker will try to pull from Docker Hub. That's why we need to specify FQDN not just hostname during edge provisioning.
 
 ### Create the child edge
 
@@ -103,7 +103,7 @@ image: "<parent-FQDN>:443/azureiotedge-agent:<version 1.2 or above>"
 createOptions = { HostConfig = { ExtraHosts=["<FQDN_child>:<IP_child>", "<FQDN_parent>:<IP_parent>"], Binds = ["/iotedge/storage:/iotedge/storage"] } }
 ```
 
-If you initially run the edge agent without this setting on the child edge and add it later, it won't be updated unless you `docker rm` the existing edge agent container and rerun `iotedge config apply`. You can use `docker inspect edgeAgent` to verify it does have the `ExtraHosts` set correctly.
+If we initially run the edge agent without this setting on the child edge and add it later, it won't be updated unless we `docker rm` the existing edge agent container and rerun `iotedge config apply`. We can use `docker inspect edgeAgent` to verify it does have the `ExtraHosts` set correctly.
 
 In IoT Hub, the deployment manifest should include the following in the create options for edgeAgent and edgeHub:
 

@@ -1,61 +1,78 @@
 # Lessons learned from setting up Azure IoT Nested Edge with X.509 Certificates
 
-Manufacturing customers often run their workload on the factory floor in networks that follow ISA-95 standard - machines on the lower layer don't have Internet access and can only communicate with the machines a layer directly above. Azure IoT Edge supports connecting a hierarchy of edge devices with the downstream devices in an isolated network connecting to a top layer edge device acting as a gateway. Additionally, manufacturing customers often have strict security requirements that only allow for CA signed certificate based authentication.
+Manufacturing customers often run their workload on the factory floor in networks that follow ISA-95 standard - machines on the lower layer don't have Internet access and can only communicate with the machines a layer directly above. Azure IoT Edge supports connecting a hierarchy of edge devices with the lower layer devices in an isolated network connecting to a top layer edge device acting as a gateway. Additionally, manufacturing customers often have strict security requirements that only allow for certificate based authentication.
 
-[Tutorial: Create a hierarchy of IoT Edge devices](https://docs.microsoft.com/en-us/azure/iot-edge/tutorial-nested-iot-edge?view=iotedge-2020-11) uses the `iotedge-config` tool to automatically provision and configure the devices. Not being an IoT expert, I wanted to manually provision and configure a nested edge scenario, using CA signed certificates for authentication where possible, so I can better understand how it works. I ran into a few issues where no readily available answers can be found on the Internet, and decided to write them up here.
+[Tutorial: Create a hierarchy of IoT Edge devices](https://docs.microsoft.com/en-us/azure/iot-edge/tutorial-nested-iot-edge?view=iotedge-2020-11) uses the `iotedge-config` tool to automatically provision and configure the devices. Not being an IoT expert, I wanted to manually provision and configure a nested edge environment, using certificates for authentication where possible, so I can better understand how it works. I ran into a few issues where no readily available answers can be found on the Internet. In hindsight, they are mostly due to my lack of understanding of some certificate related terminologies and how Azure IoT Hub and Edge work when it comes to authentication. Write this down in case it helps others like me.
 
-## What are we trying to build?
+## The scenario to build
 
-The goal is to create 2 edge devices, one in a subnet with Internet access (the gateway edge device), and another in an isolated subnet that doesn't have Internet access. Configure them such that we can see their status in Azure IoT Hub as if they are both connected to IoT Hub, and the messages sent from the edge modules on the network isolated edge device can go through the gateway edge device to IoT Hub.
+The goal is to create 2 edge devices, one in a subnet with Internet access (the __paretn__ edge device), and another in an isolated subnet that doesn't have Internet access (the __child__ edge device). Configure them such that we can see their status in Azure IoT Hub as if they are both connected to IoT Hub, and the messages sent from a module on the child edge can go through the parent edge to IoT Hub.
 
-<img src="images/overview.png" />
+<img src="media/nested_edge_overview.png" />
 
-Here are the main steps to build this out in Azure:
+We can build this out in Azure with Azure VNET and VMs. Here are the main steps:
 
 1. Create a VNET with 2 subnets, layer3 and layer4.
-2. Create 2 Ubuntu VMs, edge3 in layer3 subnet and edge4 in layer4 subnet. [Install Azure IoT Edge on both machines](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-provision-single-device-linux-symmetric?view=iotedge-2020-11&tabs=azure-portal#install-iot-edge). Here we only install the bits, not registering the devices to Azure.
-3. Add a NSG to layer3 subnet that denies all inbound and outbound Internet connection. Verify that edge3 can no longer 'curl' any public web site.
+2. Create 2 Ubuntu VMs, edge3 in layer3 subnet and edge4 in layer4 subnet. [Install Azure IoT Edge on both machines](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-provision-single-device-linux-symmetric?view=iotedge-2020-11&tabs=azure-portal#install-iot-edge). Note that here we only install the bits, not yet registering the devices to Azure.
+3. Add a NSG to layer3 subnet that denies all inbound and outbound Internet connection. Verify that edge3 can no longer 'curl' any public web site, for example, `curl https://www.google.com` will not return any content.
 4. [Generate demo certificates](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11). Note that for nested edge to work, the edge hostname used for registering devices must be FQDN or IP. The CN in the certificates must match the hostnames.
-5. Use Azure IoT Device Provisioning Service (DPS) to provision edge4 with the generated certificates.
-6. Authenticate and connect edge3 using the generated certificates as the child of edge4.
-7. Deploy the simulated temperature module to edge3 and verify the messages are received in IoT Hub.
+5. Use Azure IoT Device Provisioning Service (DPS) or manual provisioning to provision the parent edge `edge4` with the generated certificates.
+6. Provision and register the child edge `edge4`.
+7. Configure the parent edge a gateway, and connect `edge3` as a child of `edge4`.
+8. Deploy the [simulated temperature sensor](https://azuremarketplace.microsoft.com/en-us/marketplace/apps/azure-iot.simulated-temperature-sensor?tab=overview) to `edge3` and verify the messages are received in IoT Hub.
 
-## What did I learn?
+## Lessons learned
 
-All the above steps are straightforward except step 6. The following are some of the key learnings from trying to make it work.
+All of the above steps are straightforward except step 6 - authenticate and connect the child edge. The document [Configure gateways for IoT Edge devices](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-connect-downstream-iot-edge-device?view=iotedge-2020-11&tabs=azure-portal) assumes both parent and child edges are already registered, and therefore focuses on configuring the parent-child relatioship. But how do I register the edge devices first?
 
-[Provision IoT Edge device at scale using X.509 certificates](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-provision-devices-at-scale-linux-x509?view=iotedge-2020-11&tabs=individual-enrollment) finally documents how to use CA signed certificates for authentication with Azure IoT Device Provisioning Service. However, in [Authenticate a downstream device], it stated "Automatic provisioning downstream devices with the Azure IoT Hub Device Provisioning Service (DPS) is not supported."
-[Configure gateways for IoT Edge devices](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-connect-downstream-iot-edge-device?view=iotedge-2020-11&tabs=azure-portal) focuses on configure the parent-child relatioship rather than how to authenticate the lower layer edge device.
+### Self-signed vs. (private or enterpise) CA signed certificates
 
-### Register the downstream edge in IoT Hub without Internet connection
+My understanding is that a __self-signed__ certificate is not signed with any authority, which is different from a certificate signed by a private or enterprise authority. The latter is still a __CA-signed__ certificate even though the CA is not a trusted commericial certificate authority such as Baltimore, Verisign, Digicert, or GlobalSign.
 
-The document [Configure gateways for IoT Edge devices](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-connect-downstream-iot-edge-device?view=iotedge-2020-11&tabs=azure-portal) assumes both downstream and top layer edges are already registered, and therefore focuses on configuring the parent-child relatioship. [Authenticate a downstream device to Azure IoT Hub](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-authenticate-downstream-device?view=iotedge-2020-11) only applies to non-edge downstream IoT devices. So how to register the downstream edge when it can't connect to the Internet?
+Since most of our manufacturing customers have their own enterprise certificate authority (CA), I wanted to understand how CA signed certificates work. So I followed [this tutorial](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-test-certificates?view=iotedge-2020-11) to create my demo CA signed certificates to register the edge devices.
 
-Even to register the top layer edge, [Provision a single IoT Edge device using X.509 certificates](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-provision-single-device-linux-x509?view=iotedge-2020-11&tabs=azure-portal) only talks about X.509 _self-signed_ rather than _CA-signed_ certificate for authentication, which is consistent with the "Add an Edge device" capability in the Azure Portal. We have a CA-signed certificate. So we follow [Provision IoT Edge device at scale using X.509 certificates](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-provision-devices-at-scale-linux-x509?view=iotedge-2020-11&tabs=individual-enrollment) to provision the top layer edge. It's important to note -
+Here comes the confusion, to manually create an Azure IoT Edge device, only [two authentication options are supported - symmetric key and self-signed certificates](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-provision-single-device-linux-x509?view=iotedge-2020-11&tabs=azure-portal). So how do I create an edge device with CA signed certificates? [Azure IoT Device Provisioning Service (DPS)](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-provision-devices-at-scale-linux-x509?view=iotedge-2020-11&tabs=individual-enrollment) supports CA signed certificate. But the device needs to connect to DPS to be registered, which is fine with the parent edge, but how do I register the child edge without Internet connectivity? [Authenticate a downstream device to Azure IoT Hub](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-authenticate-downstream-device?view=iotedge-2020-11) only seems to apply to non-edge downstream IoT devices.
 
-* use the "full-chain" identity certificate for DPS.
-* DPS doesn't support provisioning downstream devices. But provisioning the top layer edge with DPS is fine.
-* when you later deploy the required modules to the top layer edge, it will complain about 'iothub_hostname' unknown. DPS knows which IoT Hub it connects to, but it seems that the modules may not know. In the /etc/aziot/config.toml, under the section of DPS provisioning, add a line to specify 'iothub_hostname'.
+Turns out I was ble to just get the thumbprint of the CA signed certificate and use it for both the primary and secondary thumbprint to manually register the child edge device following [the tutorial](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-provision-single-device-linux-x509?view=iotedge-2020-11&tabs=azure-portal), it doens't distinguish between self signed and CA certificate for manual registration.
 
-With the top layer edge provisioned and registered, follow [Configure a transparent gateway](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-transparent-gateway?view=iotedge-2020-11) to configure it as a gateway.
+### Things to note when provisioning the parent edge
 
-[Deploy the necessary modules to the top layer edge](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-connect-downstream-iot-edge-device?view=iotedge-2020-11&tabs=azure-portal#deploy-modules-to-top-layer-devices) so it can support the downstream edges. If everything is correctly configured, you should be able to verify the following from the downstream device:
+To use DPS to provision the parent edge, it's important to note -
 
-* `curl https://<topLevelFQDN>/v2/_catalog` returns an array of docker images in your container registry.
-* `docker pull <topLevelFQDN>/<a_docker_image>` correctly pulls the image. Note that if you don't sepcify a FQDN or IP, by default docker will try to pull from docker hub which will fail because the downstream device doesn't have Internet access.
+* Use the "full-chain" rather than the leaf identity certificate for DPS.
+* In the /etc/aziot/config.toml, under the section of DPS provisioning, add a line to specify 'iothub_hostname'. DPS knows which IoT Hub it connects to, but it seems that the edge modules may not know, so when you later deploy the required modules to the top layer edge, it will complain about unknown 'iothub_hostname'.
 
-Copy the root certificate to the downstream edge and trust it.
+With the parent edge provisioned and registered, follow [Configure a transparent gateway](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-create-transparent-gateway?view=iotedge-2020-11) to configure it as a gateway.
+
+[Deploy the necessary modules to the parent edge](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-connect-downstream-iot-edge-device?view=iotedge-2020-11&tabs=azure-portal#deploy-modules-to-top-layer-devices) so it can support the child edge. Verify the following is working from the child edge before proceeding further -
+
+* `curl https://<parentFQDN>/v2/_catalog` returns an array of docker images in your container registry, or an empty array.
+* `docker pull <parentFQDN>/<a_docker_image>` correctly pulls the image. Note that if you don't sepcify a FQDN or IP, by default docker will try to pull from Docker Hub. That's why we need to specify the FQDN not the hostname.
+
+### Things to note when provisioning the child edge
+
+The following must happen before the child edge can be successfully registered.
+
+* Both edge devices must be already registered in IoT Hub, even though the child edge has never connected to IoT Hub yet.
+* The parent-child relationship is already configured in IoT Hub.
+* The parent edge already has `Azure IoT API Proxy` and `registry` [deployed for network isolated downstream edges](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-connect-downstream-iot-edge-device?view=iotedge-2020-11&tabs=azure-portal#network-isolate-downstream-devices).
+* Note that the identity certificates used for device registration are not the same as the edge CA certificates used for child devices to trust parent edgeHub. Since our child edge is the leaf edge, we don't need edge CA certificate for the child edge.
+
+For the most part, following the [tutorial to provision a single edge device](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-provision-single-device-linux-x509?view=iotedge-2020-11&tabs=azure-portal) works. There are a few things to note -
+
+* The root CA must be trusted on the child edge.
 
 ```bash
 sudo cp <path>/<root ca certificate>.pem /usr/local/share/ca-certificates/<root ca certificate>.pem.crt
 sudo update-ca-certificates
 ```
 
-Register the IoT Edge as self-signed cert. Then configure parent/child relationship in IoT Hub
-
-Modify the downstream edge device's /etc/aziot/config.toml to use manual provisioning with X.509:
+* Modify the child edge's /etc/aziot/config.toml to use manual provisioning with X.509:
 
 ```yaml
+hostname = "<this-device-FQDN>"
+parent_hostname = "<parent-FQDN>"
+
 ## Manual provisioning with X.509 certificate
 [provisioning]
 source = "manual"
@@ -82,9 +99,9 @@ image: "<parent-FQDN>:443/azureiotedge-agent:<version 1.2 or above>"
 
 Apply the configuration by running `sudo iotedge config apply`. Verify the downstream edge is successfully registered in IoT Hub.
 
-### FQDN and name resolution
+### FQDN and name resolution in docker container
 
-The FQDN for the edge hostname must be resolvable not just from the host machines of both edge devices, but also from inside docker containers. This means if the hostnames are added to the hosts' /etc/hosts, then they must be added as docker containers' create options. In /etc/aziot/config.toml, this means the edge agent must be configured as following:
+The FQDN for the edge hostname must be resolvable not just from the host machines of both edge devices, but also from inside docker containers. This means if the hostnames are added to the host machine's `/etc/hosts`, then they must be added as docker containers' create options. In /etc/aziot/config.toml, this means the edge agent must be configured as following:
 
 ```yaml
 [agent.config]
@@ -94,7 +111,7 @@ createOptions = { HostConfig = { ExtraHosts=["<FQDN_child>:<IP_child>", "<FQDN_p
 
 If you initially run the edge agent without this setting on the downstream edge, and add it later, it won't be updated unless you `docker rm` the existing edge agent container and rerun `iotedge config apply`. You can use `docker inspect edgeAgent` to verify it does have the `ExtraHosts` set correctly.
 
-In IoT Hub, the deployment manifest should include the following for the modules' create options:
+In IoT Hub, the deployment manifest should include the following in the create options for edgeAgent and edgeHub:
 
 ```json
 {
@@ -112,20 +129,34 @@ In IoT Hub, the deployment manifest should include the following for the modules
 
 ### Required certificates and their respective use
 
-In IoT Hub or DPS, you need the root CA certificate (public), so that the Hub will only register devices signed by this certificate.
+In __IoT Hub__ or __DPS__, you need
 
-In the gateway IoT Edge, you need
+* the public portion of the root CA certificate
 
-1. root CA cert to trust (public)
-2. identity cert (both public and private)
-3. edge CA cert (both public and private)
+In the __parent IoT Edge__, you need
 
-In the leaf IoT Edge, you need
+* the public portion of the root CA cert to trust
+* both the public and private portion of the identity cert for this device
+* both the public and private portion of the edge CA cert for this device
 
-1. root CA cert to trust (public)
-2. identity cert (both public and private)
+In the __leaf child IoT Edge__, you need
 
-* How does downstream edge trust gateway edge? Downstream edge trust the root cert, gateway edge proves it has a private key for the edge CA cert.
-* How does the gateway edge trust the downstream edge? Parent/Child relationship is set in IoT Hub, gateway edge trusts the root cert, the downstream edge proves it has a private key for its identity cert.
-* How does IoT Hub trust the gateway edge? IoT Hub only respond to registered devices, to register, you must prove ownership of the root CA cert, the gateway edge proves it has a private key for its identity cert.
-* How does the gateway edge trust IoT Hub? IoT Hub has CA signed certs for its endpoints and proves it has a private key. Gateway edge trusts the CA just like a browser trusts CA signed public web site.
+* the public portion of the root CA cert to trust
+* both the public and private portion of the identity cert for this device
+
+__How are certificates used in authentication?__
+
+* How does the child edge trust the parent edge?
+  * The child edge trusts the root cert that signs the parent edge CA cert which signs the parent edgeHub cert.
+  * The parent edge presents to the child the public portion of the edgeHub cert and proves it has a private key for the cert.
+* How does the parent edge trust the child edge?
+  * Parent/child relationship is set in IoT Hub and the parent edge will only communicate with its children registered in IoT Hub.
+  * The parent edge trusts the root cert that signs the child edge's identity cert.
+  * The child edge presents to parent edge the public portion of its identity cert and proves it has a private key for the cert.
+* How does IoT Hub trust the parent edge?
+  * IoT Hub only communicates with registered devices and only trusts the registered root CA certs.
+  * The parent edge is registered in IoT Hub.
+  * The parent edge presents to IoT Hub the public portion of its identity cert and proves it has a private key for the cert.
+* How does the parent edge trust IoT Hub?
+  * The parent edge trusts commercial trusted CA just like a browser trusts public web site signed by commercial CA.
+  * IoT Hub has commercial trusted CA signed certs for its endpoints and proves it has a private key.

@@ -26,13 +26,13 @@ sudo rm -rf /var/lib/aziot/keyd/keys
 ## Step 3: Install new certificates
 On each edge device:
 
-1. If root CA certificate is updates, copy and trust the new root CA certificate, for example, 
+1. If the root CA certificate is updated, replace and trust the new root CA certificate, for example, 
 ```bash
 sudo cp /path/to/ca_cert.pem /usr/local/share/ca-certificates/ca_cert.pem.crt
 sudo update-ca-certificates
 ```
-2. Copy and replace the identity cert in the same location as before
-3. On the parent edge, copy and replace the edge CA certificates in the same location as before. 
+2. Copy and replace the identity cert for the edge device in the same location as before.
+3. On parent edge only, copy and replace the edge CA certificates in the same location as before. 
 4. Take a backup of the deployment manifest of the edge device.
 5. Delete the edge device from IoT Hub.
 

@@ -1,5 +1,6 @@
 ## Index
 
+* [Update certificates in Azure IoT nested edge](iotEdgeUpdateCerts)
 * [Lessons learned from setting up Azure IoT nested edge with X.509 certificates](azureIoTNestedEdge)
 * [How Spark reads large single line json file](sparkSingleLineJson)
 * [How Azure Machine Learning service deployment to AKS works](amlKubernetesDeployment)

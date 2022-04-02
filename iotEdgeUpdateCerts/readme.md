@@ -6,31 +6,21 @@ If you use X.509 certificates to establish trust between Azure IoT Edge devices 
 
 ## Step 1: Prepare new certificates
 Similar to provisioning a new nested edge environment, the following certificates are needed:
-* identity certificate and key for edge4 to authenticate to IoT Hub
-* identity certificate and key for edge3 to authenticate to IoT Hub through edge4
-* edge CA certificate and key for edge3 to trust its parent edge4
-* root CA certificate that's used to sign other certificates if it needs update
+* identity certificate and key for the parent edge to authenticate to IoT Hub
+* identity certificate and key for the child edge to authenticate to IoT Hub through its parent
+* edge CA certificate and key for the child edge to trust its parent
+* root CA certificate that's used to sign other certificates if it's also updated
 
-If you name these certificates exactly the same as existing certificates and place them in the same folders on both edge devices, then you don't need to change the IoT Edge configuration files `/etc/aziot/config.toml`.
+If you name these certificates exactly the same as the existing certificates and place them in the same folders on both edge devices, then you don't need to change the content of the IoT Edge configuration file `/etc/aziot/config.toml`.
 
 ## Step 2: Remove old certificates from edge devices
 On each edge device:
 
 1. Stop IoT Edge `sudo iotedge system stop`.
-2. Delete existing certificates:
+2. Delete existing certificates. This step is *critical* to the successful update of certificates.
 ```bash
 sudo rm -rf /var/lib/aziot/certd/certs
 sudo rm -rf /var/lib/aziot/keyd/keys
-```
-3. Take a backup of the following files:
-  * `/etc/aziot/config.toml`
-  * If you use a custom Nginx configuration file mounted to IoTEdgeAPIProxy module for nested edge, take a backup of that file. 
-4. Purge and reinstall IoT Edge. On the edge device with no Internet connection, you need another way to reinstall.
-```bash
-sudo apt-get remove --purge aziot-identity-service
-sudo apt-get remove --purge aziot-edge
-sudo apt-get update
-sudo apt-get install aziot-edge
 ```
 
 ## Step 3: Install new certificates
@@ -45,51 +35,54 @@ sudo update-ca-certificates
 3. On the parent edge, copy and replace the edge CA certificates in the same location as before. 
 4. Take a backup of the deployment manifest of the edge device.
 5. Delete the edge device from IoT Hub.
-6. Re-register the edge device in IoT Hub with its new identity certificate thumbprint.
+
+## Step 4: Restore the parent edge
+1. Re-register the parent edge device in IoT Hub with its new identity certificate thumbprint.
 ```bash
 # retrieve thumbprint from certificate
 openssl x509 -in /path/to/identity_cert.pem -text -fingerprint | sed 's/[:]//g'
 ```
-7. Copy the iotedge config file from Step 2.3 to `/etc/aziot/config.toml`.
-8.  Start iotedge ```sudo iotedge system apply```. 
+2.  Start iotedge ```sudo iotedge config apply```. After a few seconds, you should see the parent edge successfully registered with IoT Hub. But there's no deployment yet.
 
-After a minute or so, you should see the parent edge successfully registered with IoT Hub.
+<img src="media/parent_registered.png" />
 
-## Step 4: Re-deploy modules to the parent edge
-1.  At this point, the parent edge is registered, but if you were using a custom Nginx config file, it might be deleted when IoTEdge was removed. Stop IoTEdge to restore this file before deploying modules.
+> If the parent edge cannot register with IoT Hub, recreate the edge containers as following:
 ```bash
 sudo iotedge system stop
-sudo docker rm IoTEdgeAPIProxy
-```
-2. Copy the custom Nginx config file from Step 2.3 to the original location to be mounted to IoTEdgeAPIProxy module, making sure it's accessbile by the module. 
-```bash
-sudo mkdir /path/to/proxyconf
-sudo chmod 755 /path/to/proxyconf
-sudo cp /path/to/backup/defult.conf /path/to/proxyconf/default.conf
-sudo chmod 644 /path/to/proxyconf/default.conf
-```
-3. Restart IoTEdge and deploy modules using the deployment manifest saved at Step 3.4:
-```bash
+sudo docker rm edgeAgent
+sudo docker rm edgeHub
 sudo iotedge system restart
-az iot edge set-modules --hub-name {iothub_name} --device-id {device_id} --content {/path/to/deployment_manifest.json}
 ```
 
-After a minute or so, you should see the child edge successfully registered with IoT Hub.
+3. Deploy modules using the deployment manifest saved at Step 3.4:
+```bash
+az iot edge set-modules --hub-name {iothub_name} --device-id {parent_device_id} --content {/path/to/deployment_manifest.json}
+```
+The parent edge should now be healthy.
 
-## Step 5: Re-deploy modules to the child edge
-At this point, the child edge is successfully registered with IoT Hub, however, some modules on the child edge might still be failing because the containers might be holding on to the state of the old certificates.
+<img src="media/parent_deployed.png" />
 
-1. Delete the docker containers for the modules that failed to start:
+## Step 5: Restore the child edge
+1. Re-register the child edge device in IoT Hub with its new identity certificate thumbprint. Remember to set the parent child relationship in IoT Hub.
+```bash
+# retrieve thumbprint from certificate
+openssl x509 -in /path/to/identity_cert.pem -text -fingerprint | sed 's/[:]//g'
+```
+2.  Start iotedge ```sudo iotedge config apply```. After a few seconds, you should see the child edge successfully registered with IoT Hub. But there's no deployment yet.
+
+<img src="media/child_registered.png" />
+
+> If the child edge cannot register with IoT Hub, recreate the edge containers as following:
 ```bash
 sudo iotedge system stop
-# sudo docker rm <containers that failed to start>
+sudo docker rm edgeAgent
+sudo docker rm edgeHub
 sudo iotedge system restart
 ```
-2. Restart IoTEdge and deploy modules using the deployment manifest saved at Step 3.4:
+3. Deploy modules to the child edge using the deployment manifest saved at Step 3.4:
 ```bash
-sudo iotedge system restart
-az iot edge set-modules --hub-name {iothub_name} --device-id {device_id} --content {/path/to/deployment_manifest.json}
+az iot edge set-modules --hub-name {iothub_name} --device-id {child_device_id} --content {/path/to/deployment_manifest.json}
 ```
 
 ## Summary
-Updating expired or to-be-expired certificates in nested edge scenarios is an involved process. Invest in automation to manage such environment at scale and reduce downtime.
+Updating expired or soon-to-expire certificates in nested edge scenarios is an involved process. Invest in automation to manage such environment at scale and reduce downtime.

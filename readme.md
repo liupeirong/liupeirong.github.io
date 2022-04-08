@@ -1,6 +1,6 @@
 ## Index
 
-* [Azure IoT Edge MQTT in nested edge](azureIoTMQTTinNestedEdge)
+* [Using Azure IoT Edge MQTT Broker in nested edge](azureIoTMQTTinNestedEdge)
 * [Update certificates in Azure IoT nested edge](iotEdgeUpdateCerts)
 * [Lessons learned from setting up Azure IoT nested edge with X.509 certificates](azureIoTNestedEdge)
 * [How Spark reads large single line json file](sparkSingleLineJson)

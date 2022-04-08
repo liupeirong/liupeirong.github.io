@@ -1,9 +1,9 @@
-# How to use Azure IoT Edge MQTT in Nested Edge
+# How to use Azure IoT Edge MQTT Broker in Nested Edge
 
-[Azure IoT Edge has a MQTT broker](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-publish-subscribe?view=iotedge-2020-11) built in that allows applications on the same edge device or other devices to publish and subscribe messages. The messages can also be sent to Azure IoT Hub using the Azure IoT Edge hub. This article demonstrates how to set up MQTT clients in nested edge scenarios to allow the child edge which doesn't have Internet connection to send MQTT messages through its parent to Azure IoT Hub.
+Azure IoT Edge has a [MQTT Broker](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-publish-subscribe?view=iotedge-2020-11) built in that allows applications on the same edge device or other devices to publish and subscribe messages. The messages can also be sent to Azure IoT Hub using the Azure IoT Edge hub. This article demonstrates how to set up MQTT clients in nested edge scenarios to allow the child edge which doesn't have Internet connection to send MQTT messages through its parent to Azure IoT Hub.
 
-> * Azure IoT Edge MQTT broker is still in preview at the time of this writing (Apr 2022).
-> * [Azure IoT Hub also has MQTT broker support](https://docs.microsoft.com/en-us/azure/iot-hub/iot-hub-mqtt-support), which is separate from Azure IoT Edge MQTT broker. This article focuses on the latter. 
+> * Azure IoT Edge MQTT Broker is still in preview at the time of this writing (Apr 2022).
+> * [Azure IoT Hub also has MQTT Broker support](https://docs.microsoft.com/en-us/azure/iot-hub/iot-hub-mqtt-support), which is separate from Azure IoT Edge MQTT Broker. This article focuses on the latter. 
 
 
 ## Scenario 1: Publish and subscribe messages on the parent edge to user defined topics with TLS
@@ -29,7 +29,7 @@ az iot hub generate-sas-token -n <iot_hub_name> -d sub_client --key-type primary
 az iot hub generate-sas-token -n <iot_hub_name> -d pub_client --key-type primary --du 3600
 ```
 
-5. On the devices running MQTT client, trust the root certificate of the MQTT broker on IoT Edge. For example:
+5. On the devices running MQTT client, trust the root certificate of the MQTT Broker on IoT Edge. For example:
 ```bash
 sudo cp /path/to/azure-iot-test-only.root.ca.cert.pem /usr/local/share/ca-certificates/azure-iot-test-only.root.ca.cert.pem.crt
 sudo update-ca-certificates

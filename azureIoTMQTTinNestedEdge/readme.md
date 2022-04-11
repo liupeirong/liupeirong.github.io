@@ -37,6 +37,7 @@ sudo update-ca-certificates
 ```
 
 6. Assuming you have configured edgeHub MQTT authorization policy as [this sample](https://docs.microsoft.com/en-us/azure/iot-edge/how-to-publish-subscribe?view=iotedge-2020-11#authorize-publisher-and-subscriber-clients), run the following commands on the respective MQTT clients:
+
 ```bash
 # MQTT_BROKER_HOSTNAME is the name used when generating the IoT Edge identity certificate, ex. edge4.contoso.com
 mosquitto_sub -t "test_topic" -i "sub_client" -u "<IOT_HUB_NAME>.azure-devices.net/sub_client/?api-version=2018-06-30" -P "<SAS_TOKEN_GENERATED_FOR sub_client>" -h "<MQTT_BROKER_HOSTNAME>" -V mqttv311 -p 8883 --cafile /path/to/root_ca.crt

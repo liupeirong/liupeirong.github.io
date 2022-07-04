@@ -35,14 +35,15 @@ sudo update-ca-certificates
 3. On parent edge only, copy and replace the edge CA certificates in the same location as before. 
 
 ## Step 4: Restore the parent edge
+
 1. Update the parent edge device in IoT Hub with its new identity certificate thumbprint.
 ```bash
 # retrieve thumbprint from certificate
 openssl x509 -in /path/to/identity_cert.pem -text -fingerprint | sed 's/[:]//g'
 
 # update thumbprint
-az iot hub device-identity update --device-id <parent-edge> --hub-name <iothub-name> --primary-thumbprint <new-thumbprint>
-az iot hub device-identity update --device-id <parent-edge> --hub-name <iothub-name> --secondary-thumbprint <new-thumbprint>
+az iot hub device-identity update --device-id $parent_edge --hub-name $iothub_name --primary-thumbprint $new_thumbprint
+az iot hub device-identity update --device-id $parent_edge --hub-name $iothub_name --secondary-thumbprint $new_thumbprint
 ```
 2.  Start iotedge ```sudo iotedge config apply```. After a few seconds, you should see the parent edge healthy in IoT Hub.
 
@@ -57,14 +58,15 @@ sudo iotedge system restart
 ```
 
 ## Step 5: Restore the child edge
+
 1. Update the child edge device in IoT Hub with its new identity certificate thumbprint.
 ```bash
 # retrieve thumbprint from certificate
 openssl x509 -in /path/to/identity_cert.pem -text -fingerprint | sed 's/[:]//g'
 
 # update thumbprint
-az iot hub device-identity update --device-id <child-edge> --hub-name <iothub-name> --primary-thumbprint <new-thumbprint>
-az iot hub device-identity update --device-id <child-edge> --hub-name <iothub-name> --secondary-thumbprint <new-thumbprint>
+az iot hub device-identity update --device-id $child_edge --hub-name $iothub_name --primary-thumbprint $new_thumbprint
+az iot hub device-identity update --device-id $child_edge --hub-name $iothub_name --secondary-thumbprint $new_thumbprint
 ```
 2.  Start iotedge ```sudo iotedge config apply```. After a few seconds, you should see the child edge healthy in IoT Hub.
 

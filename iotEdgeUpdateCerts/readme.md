@@ -1,6 +1,6 @@
 # How to update expired certificates on Azure IoT Nested Edge
 
-If you use X.509 certificates to establish trust between Azure IoT Edge devices and IoT Hub, or between child and parent devices in nested edge scenarios, updating the certificates manually is a non-trivial task and also could cause downtime. This is because the certificate thumbprint of an IoT Edge device cannot be updated once registered. This article describes the manual processes for updating certificates in the Azure IoT Nested Edge scenario with one parent device that connects to Azure IoT Hub and one child device that doesn't have Internet access.
+If you use X.509 certificates to establish trust between Azure IoT Edge devices and IoT Hub, or between child and parent devices in nested edge scenarios, updating the certificates manually is a non-trivial task and also could cause downtime. This article describes the manual processes for updating certificates in the Azure IoT Nested Edge scenario with one parent device that connects to Azure IoT Hub and one child device that doesn't have Internet access.
 
 <img src="media/nested_edge_overview.png" />
 
@@ -27,24 +27,30 @@ sudo rm -rf /var/lib/aziot/keyd/keys
 On each edge device:
 
 1. If the root CA certificate is updated, replace and trust the new root CA certificate, for example, 
+
 ```bash
 sudo cp /path/to/ca_cert.pem /usr/local/share/ca-certificates/ca_cert.pem.crt
 sudo update-ca-certificates
 ```
+
 2. Copy and replace the identity cert for the edge device in the same location as before.
 3. On parent edge only, copy and replace the edge CA certificates in the same location as before. 
-4. Take a backup of the deployment manifest of the edge device.
-5. Delete the edge device from IoT Hub.
 
 ## Step 4: Restore the parent edge
-1. Re-register the parent edge device in IoT Hub with its new identity certificate thumbprint.
+1. Update the parent edge device in IoT Hub with its new identity certificate thumbprint.
+
 ```bash
 # retrieve thumbprint from certificate
 openssl x509 -in /path/to/identity_cert.pem -text -fingerprint | sed 's/[:]//g'
-```
-2.  Start iotedge ```sudo iotedge config apply```. After a few seconds, you should see the parent edge successfully registered with IoT Hub. But there's no deployment yet.
 
-<img src="media/parent_registered.png" />
+# update thumbprint
+az iot hub device-identity update --device-id <parent-edge> --hub-name <iothub-name> --primary-thumbprint <new-thumbprint>
+az iot hub device-identity update --device-id <parent-edge> --hub-name <iothub-name> --secondary-thumbprint <new-thumbprint>
+```
+
+2.  Start iotedge ```sudo iotedge config apply```. After a few seconds, you should see the parent edge healthy in IoT Hub.
+
+<img src="media/parent_deployed.png" />
 
 > If the parent edge cannot register with IoT Hub, recreate the edge containers as following:
 ```bash
@@ -54,23 +60,19 @@ sudo docker rm edgeHub
 sudo iotedge system restart
 ```
 
-3. Deploy modules using the deployment manifest saved at Step 3.4:
-```bash
-az iot edge set-modules --hub-name {iothub_name} --device-id {parent_device_id} --content {/path/to/deployment_manifest.json}
-```
-The parent edge should now be healthy.
-
-<img src="media/parent_deployed.png" />
-
 ## Step 5: Restore the child edge
-1. Re-register the child edge device in IoT Hub with its new identity certificate thumbprint. Remember to set the parent child relationship in IoT Hub.
+1. Update the child edge device in IoT Hub with its new identity certificate thumbprint.
+
 ```bash
 # retrieve thumbprint from certificate
 openssl x509 -in /path/to/identity_cert.pem -text -fingerprint | sed 's/[:]//g'
-```
-2.  Start iotedge ```sudo iotedge config apply```. After a few seconds, you should see the child edge successfully registered with IoT Hub. But there's no deployment yet.
 
-<img src="media/child_registered.png" />
+# update thumbprint
+az iot hub device-identity update --device-id <child-edge> --hub-name <iothub-name> --primary-thumbprint <new-thumbprint>
+az iot hub device-identity update --device-id <child-edge> --hub-name <iothub-name> --secondary-thumbprint <new-thumbprint>
+```
+
+2.  Start iotedge ```sudo iotedge config apply```. After a few seconds, you should see the child edge healthy in IoT Hub.
 
 > If the child edge cannot register with IoT Hub, recreate the edge containers as following:
 ```bash
@@ -78,10 +80,6 @@ sudo iotedge system stop
 sudo docker rm edgeAgent
 sudo docker rm edgeHub
 sudo iotedge system restart
-```
-3. Deploy modules to the child edge using the deployment manifest saved at Step 3.4:
-```bash
-az iot edge set-modules --hub-name {iothub_name} --device-id {child_device_id} --content {/path/to/deployment_manifest.json}
 ```
 
 ## Summary

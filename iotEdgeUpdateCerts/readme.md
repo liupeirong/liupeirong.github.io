@@ -40,7 +40,6 @@ sudo update-ca-certificates
 ```bash
 # retrieve thumbprint from certificate
 openssl x509 -in /path/to/identity_cert.pem -text -fingerprint | sed 's/[:]//g'
-
 # update thumbprint
 az iot hub device-identity update --device-id $parent_edge --hub-name $iothub_name --primary-thumbprint $new_thumbprint
 az iot hub device-identity update --device-id $parent_edge --hub-name $iothub_name --secondary-thumbprint $new_thumbprint
@@ -63,7 +62,6 @@ sudo iotedge system restart
 ```bash
 # retrieve thumbprint from certificate
 openssl x509 -in /path/to/identity_cert.pem -text -fingerprint | sed 's/[:]//g'
-
 # update thumbprint
 az iot hub device-identity update --device-id $child_edge --hub-name $iothub_name --primary-thumbprint $new_thumbprint
 az iot hub device-identity update --device-id $child_edge --hub-name $iothub_name --secondary-thumbprint $new_thumbprint

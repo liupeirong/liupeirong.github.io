@@ -1,5 +1,6 @@
 ## Index
 
+* [Reload dotnet config without restarting Kubernetes pod](dynamicReloadConfigK8s)
 * [Using Azure IoT Edge MQTT Broker in nested edge](azureIoTMQTTinNestedEdge)
 * [Update certificates in Azure IoT nested edge](iotEdgeUpdateCerts)
 * [Lessons learned from setting up Azure IoT nested edge with X.509 certificates](azureIoTNestedEdge)

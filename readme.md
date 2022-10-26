@@ -1,5 +1,7 @@
 ## Index
 
+* [Externalize secrets to Azure Key Vault for Arc managed Kubernetes clusters](azureKeyVaultArcK8s)
+* [Set policies for Arc managed Kubernetes clusters](policyArcK8s)
 * [Reload dotnet config without restarting Kubernetes pod](dynamicReloadConfigK8s)
 * [Using Azure IoT Edge MQTT Broker in nested edge](azureIoTMQTTinNestedEdge)
 * [Update certificates in Azure IoT nested edge](iotEdgeUpdateCerts)

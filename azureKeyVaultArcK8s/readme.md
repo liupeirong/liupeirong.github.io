@@ -13,7 +13,7 @@ Limitations:
 
 ## How does it work
 
-[This tutorial](https://learn.microsoft.com/en-us/azure/azure-arc/kubernetes/tutorial-akv-secrets-provider#additional-configuration-options) details how to use this Arc extension. Here are the basic steps:
+[This tutorial](https://learn.microsoft.com/en-us/azure/azure-arc/kubernetes/tutorial-akv-secrets-provider) details how to use this Arc extension. Here are the basic steps:
 
 1. Install the extension
 

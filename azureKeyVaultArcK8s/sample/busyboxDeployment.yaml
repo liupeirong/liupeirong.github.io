@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: busybox
+  labels:
+    app: busybox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: busybox
+  template:
+    metadata:
+      labels:
+        app: busybox
+    spec:
+      containers:
+      - name: busybox-container
+        image: k8s.gcr.io/e2e-test-images/busybox:1.29
+        imagePullPolicy: IfNotPresent
+        command:
+          - "/bin/sleep"
+          - "10000"
+        volumeMounts:
+        - mountPath: /mnt/secrets
+          name: akv-secrets
+          readOnly: true
+      volumes:
+      - name: akv-secrets
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: "akvprovider-demo"
+          nodePublishSecretRef:                       
+            name: akv-creds

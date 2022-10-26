@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: akv-creds
+  labels:
+    secrets-store.csi.k8s.io/used: "true"
+type: Opaque
+data:
+  clientid: your-service-principle-client-id-base64-encoded
+  clientsecret: your-service-principle-client-secret-base64-encoded

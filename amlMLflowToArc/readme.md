@@ -15,15 +15,16 @@ Whether you have an Arc enabled Kubernetes cluster or Azure Kubernetes cluster, 
 * [__Step 1__ to deploy Azure ML extension to your cluster](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-deploy-kubernetes-extension?tabs=deploy-extension-with-cli)
 * [__Step 2__ to attach your cluster to an Azure ML workspace](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-attach-kubernetes-to-workspace?tabs=cli).
 
-Completing these two steps is sufficient to deploy models to your cluster. The rest of the steps in the doc is optional.
+Completing these two steps is sufficient to deploy models to your cluster.
+ The rest of the steps in [this doc](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-attach-kubernetes-anywhere) is optional.
 
 ## Train and register a model
 
 If you follow the [Azure ML how-to guide to train and register a model](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-train-model?tabs=python),
- the following may not be immediately obvious that this sample trains an [MLflow model](https://www.mlflow.org/docs/latest/models.html) which doesn't have a `score.py` for [no-code deployment](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-log-mlflow-models?tabs=wrapper).
+ it may not be immediately obvious that this sample trains a [MLflow model](https://www.mlflow.org/docs/latest/models.html):
 
 * The training script for this sample is located [here](https://github.com/Azure/azureml-examples/tree/main/sdk/python/jobs/single-step/lightgbm/iris/src).
-* The code to connect to Azure ML and register the model is located [here](https://github.com/liupeirong/amlv2_mlflow_to_kubernetes/blob/main/main.py).
+* Sample code to connect to Azure ML and register the model is located [here](https://github.com/liupeirong/amlv2_mlflow_to_kubernetes/blob/main/main.py).
 
 ## Deploy the model
 
@@ -50,7 +51,7 @@ It's quite unlikely that your deployment of the MLflow model to your Kubernetes 
 
 Wait, didn't we just say deploying MLflow model to unmanaged endpoints using the SDK is not supported?
  Isn't local endpoint unmanaged? Yes and yes. So we need to do some exploration. If we use the Python SDK to deploy the model locally with our `score.py`,
- here are some issues that we might see and how to work around them.
+ here are some issues that you might see and tips on how to work around them.
 
 * Model can't be mounted with an `OSError` exception on Windows `WinError 123`. Go to Azure ML Studio portal to download the registered model to a folder `model`.
  You need `conda.yaml` in the model package to set up your local and Kubernetes environment anyways.
@@ -59,20 +60,26 @@ Wait, didn't we just say deploying MLflow model to unmanaged endpoints using the
 * The downloaded `conda.yaml` doesn't include the [Inference Http Server](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-inference-server-http) required for inferencing in a local or Kubernetes deployment. You need to [add this package](https://github.com/liupeirong/amlv2_mlflow_to_kubernetes/blob/main/model/conda.yaml#L10).
 
 Here's the [sample code for local deployment](https://github.com/liupeirong/amlv2_mlflow_to_kubernetes/blob/main/deploy_local.py).
-Run the following code to verify local endpoint works:
-`curl -d "{\"data\":[[1,2,3,4]]}" -H "Content-Type: application/json" localhost:<port>/score`
 
-### Understanding how deployment works
+Run the following command to verify local endpoint works:
+
+```bash
+curl -d "{\"data\":[[1,2,3,4]]}" -H "Content-Type: application/json" localhost:<port>/score
+```
+
+### Understand how deployment works
 
 Take a look at the docker container by either `docker inspect <container-id>` or `docker exec -it <container-id> /bin/bash`. You will notice:
 
-* Your model and code are mounted in `/var/azureml-app`
+* Your model and code are mounted under `/var/azureml-app`
 * Environment variables point to code and model artifacts:
   * `AZUREML_MODEL_DIR` points to the model folder
   * `AML_APP_ROOT` points to the code folder
   * `AZUREML_ENTRY_SCRIPT` points to the scoring script `score.py`
 
 The code generated in `/var/azureml-server` and `/var/runit/gunicorn/run` leverages these environment variables to [run your code](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-inference-server-http#request-flow).
+
+### Deploy to Kubernetes
 
 Once local deployment succeeds, deploy to Kubernetes:
 
@@ -83,8 +90,11 @@ The model will be deployed to the Kubernetes
  [namespace you specified when you attached the cluster to Azure ML workspace](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-attach-kubernetes-to-workspace?tabs=studio#prerequisite).
  You can get the scoring endpoint and API key programmatically or from the portal.
 
-Run the following code to verify Kubernetes endpoint works:
-`curl -d "{\"data\":[[1,2,3,4]]}" -H "Content-Type: application/json" -H "Authorization: Bearer <your key>" <your scoring url>`
+Run the following command to verify Kubernetes endpoint works:
+
+```bash
+curl -d "{\"data\":[[1,2,3,4]]}" -H "Content-Type: application/json" -H "Authorization: Bearer <your key>" <your scoring url>
+```
 
 ## Summary
 

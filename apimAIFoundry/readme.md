@@ -95,6 +95,7 @@ such as a chat completion.
 - Write a simple AI Foundry agent app to test that you can access Foundry
 agents.
 - Go to the AI Foundry portal playground to validate you can call the model APIs.
+- Optionally write a web app or container app, deploy to the agent subnet and verify if it can call Foundry APIs.
 
 NSG may be disabled on the private endpoints subnet. You can enable it
 by editing the subnet in the Azure portal:

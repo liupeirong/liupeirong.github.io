@@ -1,5 +1,6 @@
 ## Index
 
+* [Copilot Studio and Microsoft Foundry vnet integration](./copilotStudioMicrosoftFoundryVnetIntegration/)
 * [API Management and AI Foundry in a virtual network](./apimAIFoundry/)
 * [Troubleshooting Entra ID new user sign in failure](./entraIDmfa)
 * [Deploy MLFlow models to Arc enabled Kubernetes using Azure ML Python SDK v2](./amlMLflowToArc)

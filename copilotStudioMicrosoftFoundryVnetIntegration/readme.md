@@ -17,8 +17,8 @@ There are, however, a few limitations that may not be obvious until you try.
 ### Supported scenarios
 
 - ✅ Copilot Studio can access [AI Search as a knowledge source](https://learn.microsoft.com/en-us/microsoft-copilot-studio/knowledge-azure-ai-search). No need to open firewall when setting up the connection in Copilot Studio.
-- ✅ Other Copilot Studio [supported services](https://learn.microsoft.com/en-us/power-platform/admin/vnet-support-overview#supported-services) with vnet integration.
-- ✅ End-to-end network isolation with Foundry Agent Service network injection in the **Foundry Classic only**
+- ✅ Other Copilot Studio [supported Azure services](https://learn.microsoft.com/en-us/power-platform/admin/vnet-support-overview#supported-services) with vnet integration.
+- ✅ End-to-end network isolation with Foundry Agent Service network injection in **Foundry Classic only**
 (as of Dec 2025).
 
 ### Unsupported scenarios
@@ -46,4 +46,4 @@ look same, and private DNS zones must be attached to both.
 Sometimes, it shows everything succeeded even though they didn't. If things don't work, it's critical
 to use the [troubleshooting tools](https://learn.microsoft.com/en-us/troubleshoot/power-platform/administration/virtual-network?toc=%2Fpower-platform%2Fadmin%2Ftoc.json&bc=%2Fpower-platform%2Fbreadcrumb%2Ftoc.json).
 1. If you changed either vnets or DNS or the Power Platform enterprise network policy, use
-[additional Powershell Subnet Injection tools](https://github.com/microsoft/PowerPlatform-EnterprisePolicies?tab=readme-ov-file#how-to-run-subnet-injection-scripts) to remove and re-attach enterprise policies.
+additional [Powershell Subnet Injection tools](https://github.com/microsoft/PowerPlatform-EnterprisePolicies?tab=readme-ov-file#how-to-run-subnet-injection-scripts) to remove and re-attach enterprise policies.
